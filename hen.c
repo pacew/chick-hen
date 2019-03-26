@@ -102,8 +102,6 @@ main (int argc, char **argv)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *iaddr;
 			iaddr = (struct sockaddr_in *)ifa->ifa_addr;
-			printf ("%p %s %s\n", ifa, ifa->ifa_name,
-				inet_ntoa (iaddr->sin_addr));
 			memset (&group, 0, sizeof group);
 			group.imr_multiaddr = addr.sin_addr;
 			group.imr_interface = iaddr->sin_addr;
@@ -131,17 +129,10 @@ main (int argc, char **argv)
 			exit (1);
 		}
 		buf[len] = 0;
-		if (vflag) {
-			printf ("%s:%d\n", 
-				inet_ntoa (raddr.sin_addr),
-				ntohs (raddr.sin_port));
-			dump (buf, len);
-		} else {
-			printf ("%s:%d %s\n", 
-				inet_ntoa (raddr.sin_addr),
-				ntohs (raddr.sin_port),
-				buf);
-		}
+		printf ("%s:%d\n", 
+			inet_ntoa (raddr.sin_addr),
+			ntohs (raddr.sin_port));
+		dump (buf, len);
 
 		sendto (sock, "ok", 2, 0,
 			(struct sockaddr *)&raddr, raddrlen);
