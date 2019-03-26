@@ -8,9 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
-//#include <linux/if_link.h>
 
-#define HEN_ADDR "224.0.0.130"
+#include "chick-hen.h"
 
 int vflag;
 
@@ -77,9 +76,17 @@ main (int argc, char **argv)
 	if (optind != argc)
 		usage ();
 
-	port = 32519;
+	port = CHICK_HEN_PORT;
 
 	sock = socket (AF_INET, SOCK_DGRAM, 0);
+
+	int reuse = 1;
+	if (setsockopt (sock, SOL_SOCKET, SO_REUSEADDR,
+			&reuse, sizeof reuse) < 0) {
+		perror ("SO_REUSEADDR");
+		exit (1);
+	}
+
 
 	memset (&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
@@ -135,6 +142,9 @@ main (int argc, char **argv)
 				ntohs (raddr.sin_port),
 				buf);
 		}
+
+		sendto (sock, "ok", 2, 0,
+			(struct sockaddr *)&raddr, raddrlen);
 	}
 
 	return (0);

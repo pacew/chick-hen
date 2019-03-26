@@ -1,0 +1,76 @@
+chick hen farmer
+
+chick is super low power; uses lora to send data to hen
+hen is listening to lora all the time; has wifi and satellite radio connections
+farmer runs on a phone, collects data from hen via local wifi, uploads to cloud when later connected to real net
+
+chick/hen protocol
+
+long term feedback loop to limit xmit power
+
+receiver listens for command for a few seconds after it transmits
+
+could be multiple hens in earshot, each with its own nodenum
+
+data packet
+8 bits: to addr = hen nodenum
+8 bits: from addr "node number"
+8 bits: signal strength of last received packet
+20 bits: seq # of first sample, starts at 0 on first boot, wraps in 2 years at 1 sample/minute
+n bytes raw sensor data
+24 bit HMAC, key derived from series number
+
+cmd/ack packet
+8 bits: to addr = node number
+8 bits: op cmd packet
+4 bits: set xmit power
+4 bits: send up to N samples per packet
+20 bits: seq # of first sample needed
+24 bit HMAC
+
+
+
+set params
+8 bits: to addr = node number
+8 bits: op config
+16 bits: data record interval, seconds
+16 bits: data xmit interval, seconds
+24 bit HMAC
+
+if HMAC is wrong, still responds, but doesn't act on config params
+
+params response
+8 bits: to addr = master
+8 bits: from addr "node number"
+8 bits: signal strength of last received packet
+24 bits: series number
+20 bits seq number of last ack'ed pkt
+32 bits timestamp of last ack'ed pkt
+20 bit seq number of most recently stored pkt
+24 bit HMAC
+
+
+config pkt - ok to be long ... will normally be used close range
+hen nodenum
+series num - zero means don't change
+starting seq
+for each chan
+  type (adc, spi)
+  args1..4
+  zero offset
+  send bytes
+24 bit HMAC
+
+
+
+config response
+
+
+
+
+config record
+node number
+series number
+enabled channels
+
+
