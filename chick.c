@@ -1,22 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <memory.h>
-#include <fcntl.h>
-#include <math.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-
 #include "chick-hen.h"
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
 int vflag;
 
-#define DATA_INTERVAL_SECS 0.1
+#define DATA_INTERVAL_SECS 1
 #define XMIT_INTERVAL_SECS 1
 #define LISTEN_INTERVAL_SECS 0.5
 
@@ -32,8 +20,8 @@ double next_data_ts;
 int sock;
 struct sockaddr_in hen_addr;
 
-int hen_nodenum;
-int my_nodenum;
+int hen_nodenum = 99;
+int my_nodenum = 100;
 int last_rcv_strength;
 uint32_t series_number;
 
@@ -191,45 +179,15 @@ collect_data (void)
 }
 
 void
-put8 (unsigned char **pp, int val)
-{
-	*(*pp)++ = val;
-}
-
-void
-put24 (unsigned char **pp, int val)
-{
-	*(*pp)++ = val;
-	*(*pp)++ = val >> 8;
-	*(*pp)++ = val >> 16;
-}
-
-void
-put32 (unsigned char **pp, int val)
-{
-	*(*pp)++ = val;
-	*(*pp)++ = val >> 8;
-	*(*pp)++ = val >> 16;
-	*(*pp)++ = val >> 24;
-}
-
-void
-put_double (unsigned char **pp, double val)
-{
-	memcpy (*pp, &val, sizeof val);
-	(*pp) += sizeof val;
-}
-
-void
 maybe_xmit (void)
 {
 	int thistime;
 	struct dpoint *first, *dp;
-	unsigned char *p;
 	unsigned char pkt[1000];
 	int off;
 	uint32_t hmac;
 	int size;
+	struct wirebuf wb;
 	
 	/* TODO: take into account generated jitter */
 	if (get_secs () - last_xmit_ts < XMIT_INTERVAL_SECS)
@@ -243,25 +201,26 @@ maybe_xmit (void)
 
 	first = peek_dpoint (0);
 
-	p = pkt;
-	put8 (&p, hen_nodenum);
-	put8 (&p, my_nodenum);
-	put8 (&p, last_rcv_strength);
-	put24 (&p, first->seq);
+	init_wirebuf (&wb, pkt, sizeof pkt);
+	put8 (&wb, hen_nodenum);
+	put8 (&wb, my_nodenum);
+	put8 (&wb, last_rcv_strength);
+	put24 (&wb, first->seq);
 
 	for (off = 0; off < thistime; off++) {
 		if ((dp = peek_dpoint (off)) == NULL)
 			break;
-		put_double (&p, dp->ts);
-		put_double (&p, dp->val);
+		put_double (&wb, dp->ts);
+		put_double (&wb, dp->val);
 	}
 	
 	hmac = series_number;
 	
-	put32 (&p, hmac);
+	put32 (&wb, hmac);
 	
-	size = p - pkt;
+	size = wb.used;
 	
+	printf ("xmit %d x%d\n", first->seq, thistime);
 	dump (pkt, size);
 	sendto (sock, pkt, size, 0,
 		(struct sockaddr *)&hen_addr, sizeof hen_addr);

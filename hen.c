@@ -1,15 +1,9 @@
 /* soak up data from multicast all local hosts: 224.0.0.1 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <memory.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-
 #include "chick-hen.h"
+
+void process_pkt (struct sockaddr_in *raddr, unsigned char *pkt, int len);
+
 
 int vflag;
 
@@ -58,7 +52,7 @@ main (int argc, char **argv)
 	struct sockaddr_in addr, raddr;
 	socklen_t raddrlen;
 	int len;
-	char buf[10000];
+	unsigned char buf[10000];
 	int port;
 	struct ifaddrs *ifaddr, *ifa;
 	struct ip_mreq group;
@@ -129,10 +123,7 @@ main (int argc, char **argv)
 			exit (1);
 		}
 		buf[len] = 0;
-		printf ("%s:%d\n", 
-			inet_ntoa (raddr.sin_addr),
-			ntohs (raddr.sin_port));
-		dump (buf, len);
+		process_pkt (&raddr, buf, len);
 
 		sendto (sock, "ok", 2, 0,
 			(struct sockaddr *)&raddr, raddrlen);
@@ -141,3 +132,30 @@ main (int argc, char **argv)
 	return (0);
 }
 
+void
+process_pkt (struct sockaddr_in *raddr, unsigned char *rawpkt, int len)
+{
+	struct chick_hen_data msg;
+	int dat_avail;
+	struct wirebuf wb;
+	
+	memset (&msg, 0, sizeof msg);
+	
+	init_wirebuf (&wb, rawpkt, len);
+	msg.to_nodenum = get8 (&wb);
+	msg.from_nodenum = get8 (&wb);
+	msg.last_strength = get8 (&wb);
+	msg.seq = get24 (&wb);
+	
+	dat_avail = wb.avail - wb.used - 4;
+
+	msg.hmac = get32 (&wb);
+	
+	printf ("%s:%d %d->%d s%d seq%d hmac%d avail%d\n", 
+		inet_ntoa (raddr->sin_addr), ntohs (raddr->sin_port),
+		msg.to_nodenum, msg.from_nodenum,
+		msg.last_strength,
+		msg.seq, msg.hmac,
+		dat_avail);
+	dump (rawpkt, len);
+}
