@@ -12,6 +12,64 @@
 
 #include "chick-hen.h"
 
+#define DATA_INTERVAL 0.05 /* secs */
+
+double
+get_secs (void)
+{
+	struct timeval tv;
+
+	gettimeofday (&tv, NULL);
+	return (tv.tv_sec + tv.tv_usec / 1e6);
+}
+
+struct timeout {
+	struct timeout *next;
+	double due;
+	void (*func)(void *arg);
+	void *arg;
+};
+
+struct timeout *timeouts;
+
+void
+set_timeout (double delta_secs, void (*func)(void *arg), void *arg)
+{
+	struct timeout *tp, **otp;
+
+	tp = calloc (1, sizeof *tp);
+	tp->due = get_secs () + delta_secs;
+	tp->func = func;
+	tp->arg = arg;
+
+	for (otp = &timeouts; *otp; otp = &(*otp)->next) {
+		if (tp->due < (*otp)->due)
+			break;
+	}
+
+	tp->next = *otp;
+	*otp = tp;
+}
+
+double
+run_timeouts (void)
+{
+	double now;
+	struct timeout *tp;
+
+	now = get_secs ();
+	while ((tp = timeouts) != NULL) {
+		if (now < tp->due)
+			return (tp->due - now);
+
+		(*tp->func)(tp->arg);
+		timeouts = tp->next;
+		free (tp);
+	}
+
+	return (-1);
+}
+
 int vflag;
 
 void
@@ -51,14 +109,89 @@ dump (void *buf, int n)
 	}
 }
 
-double
-get_secs (void)
-{
-	struct timeval tv;
+struct dpoint {
+	double ts;
+	double val;
+};
 
-	gettimeofday (&tv, NULL);
-	return (tv.tv_sec + tv.tv_usec / 1e6);
+#define NUM_DPOINTS 1000
+struct dpoint dpoints[NUM_DPOINTS];
+int dpoint_in, dpoint_out;
+
+struct dpoint *
+peek_dpoint (void)
+{
+	if (dpoint_in == dpoint_out)
+		return (NULL);
+	return (&dpoints[dpoint_out]);
 }
+
+void
+consume_dpoint (void)
+{
+	dpoint_out = (dpoint_out + 1) % NUM_DPOINTS;
+}
+
+struct dpoint *
+alloc_dpoint (void)
+{
+	if ((dpoint_in + 1) % NUM_DPOINTS == dpoint_out)
+		consume_dpoint ();
+
+	return (&dpoints[dpoint_in]);
+}
+
+void
+save_dpoint (struct dpoint *dp)
+{
+	dpoint_in = (dpoint_in + 1) % NUM_DPOINTS;
+}
+
+
+
+void
+dump_data (void)
+{
+	int idx;
+	struct dpoint *dp;
+	FILE *outf;
+	double first_ts;
+
+	if ((outf = fopen ("x.dat", "w")) == NULL) {
+		fprintf (stderr, "can't create x.dat\n");
+		exit (1);
+	}
+
+	first_ts = 0;
+	for (idx = dpoint_out; 
+	     idx != dpoint_in; 
+	     idx = (idx + 1) % NUM_DPOINTS) {
+		dp = &dpoints[idx];
+		if (first_ts == 0)
+			first_ts = dp->ts;
+		fprintf (outf, "%g %g\n", dp->ts - first_ts, dp->val);
+	}
+	fclose (outf);
+}
+
+void
+collect_data (void *arg)
+{
+	struct dpoint *dp;
+	
+	printf ("tick\n");
+
+	if ((dp = alloc_dpoint ()) != NULL) {
+		dp->ts = get_secs ();
+		dp->val = sin (dp->ts * 0.1 * 2 * M_PI);
+		save_dpoint (dp);
+	}
+
+	dump_data();
+
+	set_timeout (DATA_INTERVAL, collect_data, NULL);
+}
+
 
 void do_rcv (void);
 
@@ -69,11 +202,10 @@ main (int argc, char **argv)
 {
 	int c;
 	struct sockaddr_in addr;
-	char buf[10000];
 	int port;
-	double next_xmit, now, delta;
 	struct timeval tv;
 	fd_set rset;
+	double delta;
 
 	while ((c = getopt (argc, argv, "v")) != EOF) {
 		switch (c) {
@@ -101,18 +233,13 @@ main (int argc, char **argv)
 
 	printf ("sending to %s:%d\n", HEN_ADDR, port);
 
-	next_xmit = get_secs ();
+	set_timeout (DATA_INTERVAL, collect_data, NULL);
 
 	while (1) {
-		now = get_secs ();
-		delta = next_xmit - now;
-		if (delta <= 0) {
-			strcpy (buf, "hello");
-			sendto (sock, buf, strlen (buf), 0,
-				(struct sockaddr *)&addr, sizeof addr);
-			next_xmit = now + 1;
-		} else {
-			/* delta > 0 */
+		do_rcv ();
+
+		delta = run_timeouts ();
+		if (delta > 0) {
 			tv.tv_sec = floor (delta);
 			tv.tv_usec = floor ((delta - tv.tv_sec) * 1e6);
 			FD_ZERO (&rset);
@@ -121,8 +248,6 @@ main (int argc, char **argv)
 				perror ("select");
 				exit (1);
 			}
-			if (FD_ISSET (sock, &rset))
-				do_rcv ();
 		}
 	}
 
