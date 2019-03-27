@@ -12,7 +12,44 @@
 
 #include "chick-hen.h"
 
-#define DATA_INTERVAL 0.05 /* secs */
+#define min(a,b) ((a)<(b)?(a):(b))
+
+int vflag;
+
+#define DATA_INTERVAL_SECS 0.1
+#define XMIT_INTERVAL_SECS 1
+#define LISTEN_INTERVAL_SECS 0.5
+
+double last_xmit_ts;
+double listen_until_ts;
+double next_data_ts;
+
+
+
+
+#define MAX_XMIT_DPOINTS 3
+
+int sock;
+struct sockaddr_in hen_addr;
+
+int hen_nodenum;
+int my_nodenum;
+int last_rcv_strength;
+uint32_t series_number;
+
+uint32_t next_seq;
+
+struct dpoint {
+	uint32_t seq;
+	double ts;
+	double val;
+};
+
+#define NUM_DPOINTS 1000
+struct dpoint dpoints[NUM_DPOINTS];
+int dpoint_in, dpoint_out;
+
+void rcv_soak (void);
 
 double
 get_secs (void)
@@ -22,55 +59,6 @@ get_secs (void)
 	gettimeofday (&tv, NULL);
 	return (tv.tv_sec + tv.tv_usec / 1e6);
 }
-
-struct timeout {
-	struct timeout *next;
-	double due;
-	void (*func)(void *arg);
-	void *arg;
-};
-
-struct timeout *timeouts;
-
-void
-set_timeout (double delta_secs, void (*func)(void *arg), void *arg)
-{
-	struct timeout *tp, **otp;
-
-	tp = calloc (1, sizeof *tp);
-	tp->due = get_secs () + delta_secs;
-	tp->func = func;
-	tp->arg = arg;
-
-	for (otp = &timeouts; *otp; otp = &(*otp)->next) {
-		if (tp->due < (*otp)->due)
-			break;
-	}
-
-	tp->next = *otp;
-	*otp = tp;
-}
-
-double
-run_timeouts (void)
-{
-	double now;
-	struct timeout *tp;
-
-	now = get_secs ();
-	while ((tp = timeouts) != NULL) {
-		if (now < tp->due)
-			return (tp->due - now);
-
-		(*tp->func)(tp->arg);
-		timeouts = tp->next;
-		free (tp);
-	}
-
-	return (-1);
-}
-
-int vflag;
 
 void
 usage (void)
@@ -109,21 +97,19 @@ dump (void *buf, int n)
 	}
 }
 
-struct dpoint {
-	double ts;
-	double val;
-};
-
-#define NUM_DPOINTS 1000
-struct dpoint dpoints[NUM_DPOINTS];
-int dpoint_in, dpoint_out;
+int
+dpoint_avail (void)
+{
+	return ((dpoint_in - dpoint_out + NUM_DPOINTS) % NUM_DPOINTS);
+}
 
 struct dpoint *
-peek_dpoint (void)
+peek_dpoint (int offset)
 {
-	if (dpoint_in == dpoint_out)
+	if (offset >= dpoint_avail ())
 		return (NULL);
-	return (&dpoints[dpoint_out]);
+	
+	return (&dpoints[(dpoint_out + offset) % NUM_DPOINTS]);
 }
 
 void
@@ -146,8 +132,6 @@ save_dpoint (struct dpoint *dp)
 {
 	dpoint_in = (dpoint_in + 1) % NUM_DPOINTS;
 }
-
-
 
 void
 dump_data (void)
@@ -174,14 +158,28 @@ dump_data (void)
 	fclose (outf);
 }
 
+double
+jitter (void)
+{
+	double r = (double)random () / RAND_MAX;
+
+	return ((r - 0.5) * DATA_INTERVAL_SECS * 0.1);
+}
+
 void
-collect_data (void *arg)
+collect_data (void)
 {
 	struct dpoint *dp;
+	double now;
 	
-	printf ("tick\n");
+	now = get_secs ();
+	if (now < next_data_ts)
+		return;
+
+	printf ("get data\n");
 
 	if ((dp = alloc_dpoint ()) != NULL) {
+		dp->seq = next_seq++;
 		dp->ts = get_secs ();
 		dp->val = sin (dp->ts * 0.1 * 2 * M_PI);
 		save_dpoint (dp);
@@ -189,24 +187,100 @@ collect_data (void *arg)
 
 	dump_data();
 
-	set_timeout (DATA_INTERVAL, collect_data, NULL);
+	next_data_ts = now + DATA_INTERVAL_SECS + jitter ();
 }
 
+void
+put8 (unsigned char **pp, int val)
+{
+	*(*pp)++ = val;
+}
 
-void do_rcv (void);
+void
+put24 (unsigned char **pp, int val)
+{
+	*(*pp)++ = val;
+	*(*pp)++ = val >> 8;
+	*(*pp)++ = val >> 16;
+}
 
-int sock;
+void
+put32 (unsigned char **pp, int val)
+{
+	*(*pp)++ = val;
+	*(*pp)++ = val >> 8;
+	*(*pp)++ = val >> 16;
+	*(*pp)++ = val >> 24;
+}
+
+void
+put_double (unsigned char **pp, double val)
+{
+	memcpy (*pp, &val, sizeof val);
+	(*pp) += sizeof val;
+}
+
+void
+maybe_xmit (void)
+{
+	int thistime;
+	struct dpoint *first, *dp;
+	unsigned char *p;
+	unsigned char pkt[1000];
+	int off;
+	uint32_t hmac;
+	int size;
+	
+	/* TODO: take into account generated jitter */
+	if (get_secs () - last_xmit_ts < XMIT_INTERVAL_SECS)
+		return;
+
+	if ((thistime = dpoint_avail ()) == 0)
+		return;
+	
+	if (thistime > MAX_XMIT_DPOINTS)
+		thistime = MAX_XMIT_DPOINTS;
+
+	first = peek_dpoint (0);
+
+	p = pkt;
+	put8 (&p, hen_nodenum);
+	put8 (&p, my_nodenum);
+	put8 (&p, last_rcv_strength);
+	put24 (&p, first->seq);
+
+	for (off = 0; off < thistime; off++) {
+		if ((dp = peek_dpoint (off)) == NULL)
+			break;
+		put_double (&p, dp->ts);
+		put_double (&p, dp->val);
+	}
+	
+	hmac = series_number;
+	
+	put32 (&p, hmac);
+	
+	size = p - pkt;
+	
+	dump (pkt, size);
+	sendto (sock, pkt, size, 0,
+		(struct sockaddr *)&hen_addr, sizeof hen_addr);
+	last_xmit_ts = get_secs ();
+	
+	listen_until_ts = last_xmit_ts + LISTEN_INTERVAL_SECS;
+}
+
 
 int
 main (int argc, char **argv)
 {
 	int c;
-	struct sockaddr_in addr;
 	int port;
 	struct timeval tv;
 	fd_set rset;
-	double delta;
-
+	double now;
+	double secs;
+	
 	while ((c = getopt (argc, argv, "v")) != EOF) {
 		switch (c) {
 		case 'v':
@@ -226,36 +300,45 @@ main (int argc, char **argv)
 
 	fcntl (sock, F_SETFL, O_NONBLOCK);
 
-	memset (&addr, 0, sizeof addr);
-	addr.sin_family = AF_INET;
-	inet_aton (HEN_ADDR, &addr.sin_addr);
-	addr.sin_port = htons (port);
+	memset (&hen_addr, 0, sizeof hen_addr);
+	hen_addr.sin_family = AF_INET;
+	inet_aton (HEN_ADDR, &hen_addr.sin_addr);
+	hen_addr.sin_port = htons (port);
 
 	printf ("sending to %s:%d\n", HEN_ADDR, port);
 
-	set_timeout (DATA_INTERVAL, collect_data, NULL);
-
 	while (1) {
-		do_rcv ();
+		rcv_soak ();
+		
+		collect_data ();
+		maybe_xmit ();
 
-		delta = run_timeouts ();
-		if (delta > 0) {
-			tv.tv_sec = floor (delta);
-			tv.tv_usec = floor ((delta - tv.tv_sec) * 1e6);
-			FD_ZERO (&rset);
-			FD_SET (sock, &rset);
-			if (select (sock + 1, &rset, NULL, NULL, &tv) < 0) {
-				perror ("select");
-				exit (1);
+		now = get_secs ();
+		if (listen_until_ts > now) {
+			secs = min (next_data_ts, listen_until_ts) - now;
+			if (secs > 0) {
+				tv.tv_sec = floor (secs);
+				tv.tv_usec = floor ((secs - tv.tv_sec) * 1e6);
+				FD_ZERO (&rset);
+				FD_SET (sock, &rset);
+				if (select(sock+1, &rset, NULL, NULL, &tv)<0) {
+					perror ("select");
+					exit (1);
+				}
 			}
+		} else {
+			secs = next_data_ts - now;
+			if (secs > 0)
+				usleep (secs * 1e6);
 		}
+
 	}
 
 	return (0);
 }
 
 void
-do_rcv (void)
+rcv_soak (void)
 {
 	struct sockaddr_in raddr;
 	socklen_t raddr_len;
