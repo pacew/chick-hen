@@ -196,6 +196,8 @@ maybe_xmit (void)
 	if ((thistime = dpoint_avail ()) == 0)
 		return;
 	
+	/* keep packet size under 50 bytes */
+
 	if (thistime > MAX_XMIT_DPOINTS)
 		thistime = MAX_XMIT_DPOINTS;
 
@@ -240,6 +242,10 @@ main (int argc, char **argv)
 	double now;
 	double secs;
 	
+	last_rcv_strength = 0xaa;
+	next_seq = 0x123456;
+	series_number = 0xaabbccdd;
+	
 	while ((c = getopt (argc, argv, "v")) != EOF) {
 		switch (c) {
 		case 'v':
@@ -253,18 +259,19 @@ main (int argc, char **argv)
 	if (optind != argc)
 		usage ();
 
+	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
+		fprintf (stderr, "can't setup multicast\n");
+		exit (1);
+	}
+
 	port = CHICK_HEN_PORT;
-
-	sock = socket (AF_INET, SOCK_DGRAM, 0);
-
-	fcntl (sock, F_SETFL, O_NONBLOCK);
 
 	memset (&hen_addr, 0, sizeof hen_addr);
 	hen_addr.sin_family = AF_INET;
-	inet_aton (HEN_ADDR, &hen_addr.sin_addr);
+	inet_aton (CHICK_HEN_MADDR, &hen_addr.sin_addr);
 	hen_addr.sin_port = htons (port);
 
-	printf ("sending to %s:%d\n", HEN_ADDR, port);
+	printf ("sending to %s:%d\n", CHICK_HEN_MADDR, port);
 
 	while (1) {
 		rcv_soak ();

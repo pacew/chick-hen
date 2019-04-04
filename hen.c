@@ -49,13 +49,10 @@ main (int argc, char **argv)
 {
 	int c;
 	int sock;
-	struct sockaddr_in addr, raddr;
+	struct sockaddr_in raddr;
 	socklen_t raddrlen;
 	int len;
 	unsigned char buf[10000];
-	int port;
-	struct ifaddrs *ifaddr, *ifa;
-	struct ip_mreq group;
 
 	while ((c = getopt (argc, argv, "v")) != EOF) {
 		switch (c) {
@@ -70,49 +67,14 @@ main (int argc, char **argv)
 	if (optind != argc)
 		usage ();
 
-	port = CHICK_HEN_PORT;
-
-	sock = socket (AF_INET, SOCK_DGRAM, 0);
-
-	int reuse = 1;
-	if (setsockopt (sock, SOL_SOCKET, SO_REUSEADDR,
-			&reuse, sizeof reuse) < 0) {
-		perror ("SO_REUSEADDR");
+	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
+		fprintf (stderr, "can't setup multicast\n");
 		exit (1);
 	}
 
+	printf ("listening on %s:%d\n", CHICK_HEN_MADDR, CHICK_HEN_PORT);
 
-	memset (&addr, 0, sizeof addr);
-	addr.sin_family = AF_INET;
-	inet_aton (HEN_ADDR, &addr.sin_addr);
-	addr.sin_port = htons (port);
-
-	if (getifaddrs (&ifaddr) < 0) {
-		perror ("getifaddrs");
-		exit (1);
-	}
-	
-	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			struct sockaddr_in *iaddr;
-			iaddr = (struct sockaddr_in *)ifa->ifa_addr;
-			memset (&group, 0, sizeof group);
-			group.imr_multiaddr = addr.sin_addr;
-			group.imr_interface = iaddr->sin_addr;
-			if (setsockopt (sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-					&group, sizeof group) < 0) {
-				perror ("add membership");
-				exit (1);
-			}
-		}
-	}
-
-	if (bind (sock, (struct sockaddr *)&addr, sizeof addr) < 0) {
-		perror ("bind");
-		exit (1);
-	}
-
-	printf ("listening on %s:%d\n", HEN_ADDR, port);
+	fcntl (sock, F_SETFL, 0);
 
 	while (1) {
 		raddrlen = sizeof raddr;
@@ -149,9 +111,10 @@ process_pkt (struct sockaddr_in *raddr, unsigned char *rawpkt, int len)
 	
 	dat_avail = wb.avail - wb.used - 4;
 
+	wb.used += dat_avail;
 	msg.hmac = get32 (&wb);
 	
-	printf ("%s:%d %d->%d s%d seq%d hmac%d avail%d\n", 
+	printf ("%s:%d %d->%d str%x seq%x hmac%x avail%d\n", 
 		inet_ntoa (raddr->sin_addr), ntohs (raddr->sin_port),
 		msg.to_nodenum, msg.from_nodenum,
 		msg.last_strength,

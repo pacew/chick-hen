@@ -4,13 +4,14 @@
 #include <memory.h>
 #include <math.h>
 #include <fcntl.h>
-#include <ifaddrs.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define HEN_ADDR "224.0.0.130"
+#include "multicast.h"
+
+#define CHICK_HEN_MADDR "224.0.0.130"
 #define CHICK_HEN_PORT 32519
 
 struct wirebuf {
