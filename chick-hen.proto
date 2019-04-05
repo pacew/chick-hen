@@ -1,0 +1,41 @@
+pkt data
+i1 to_nodenum
+i1 from_nodenum
+i3 seq
+i4 hmac
+# raw data follows
+
+pkt ack
+i1 to_nodenum
+i1 from_nodenum
+i1 xmit_params
+i3 ack
+i4 hmac
+
+pkt set_params
+i1 to_nodenum
+i1 opcode
+i2 record_interval_secs
+i2 xmit_interval_secs
+i4 hmac
+
+pkt status
+i1 to_nodenum
+i1 from_nodenum
+i1 last_strength
+i3 series_number
+i3 acked_seq
+i4 acked_timestamp
+i3 newest_seq
+i4 hmac
+
+pkt data_item
+i1 idx
+i1 nbits
+i1 input_chan
+i4 offset
+i4 scale
+i1 output_offset
+i1 output_shift
+i4 options
+

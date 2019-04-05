@@ -1,0 +1,41 @@
+#! /usr/bin/env python3
+
+import sys
+import socket
+import json
+
+CHICK_HEN_MADDR = "224.0.0.130"
+CHICK_HEN_PORT = 32519
+
+sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
+
+# sock.sendto ("hello".encode("utf-8"), (CHICK_HEN_MADDR, CHICK_HEN_PORT))
+   
+try:
+   with open ("cfg.json") as json_file:
+      cfg = json.load (json_file)
+except (OSError, ValueError):
+   print ("Can't parse cfg.json")
+   sys.exit(1)
+
+def get_config(num):
+   for node in cfg:
+      if (int(node["node"]) == num):
+         return node
+   return None
+
+if len(sys.argv) != 2:
+   print ("usage: config-check nodenum")
+   sys.exit (1)
+
+node = get_config (int(sys.argv[1]))
+
+nchans = len(node['channels'])
+print ("set nchans to", nchans)
+
+for chan in node['channels']:
+   print(chan)
+
+
+
+

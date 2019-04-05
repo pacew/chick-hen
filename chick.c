@@ -3,6 +3,7 @@
 #define min(a,b) ((a)<(b)?(a):(b))
 
 int vflag;
+int xflag;
 
 #define DATA_INTERVAL_SECS 1
 #define XMIT_INTERVAL_SECS 1
@@ -246,8 +247,11 @@ main (int argc, char **argv)
 	next_seq = 0x123456;
 	series_number = 0xaabbccdd;
 	
-	while ((c = getopt (argc, argv, "v")) != EOF) {
+	while ((c = getopt (argc, argv, "vx")) != EOF) {
 		switch (c) {
+		case 'x':
+			xflag = 1;
+			break;
 		case 'v':
 			vflag = 1;
 			break;
@@ -277,10 +281,11 @@ main (int argc, char **argv)
 		rcv_soak ();
 		
 		collect_data ();
-		maybe_xmit ();
+		if (xflag)
+			maybe_xmit ();
 
 		now = get_secs ();
-		if (listen_until_ts > now) {
+		if (now < listen_until_ts) {
 			secs = min (next_data_ts, listen_until_ts) - now;
 			if (secs > 0) {
 				tv.tv_sec = floor (secs);
