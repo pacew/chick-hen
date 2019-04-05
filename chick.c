@@ -2,6 +2,10 @@
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
+
+/* 0x86 0x19 0x83 is a locally administered mac prefix, randomly chosen */
+unsigned char my_mac_addr[6] = { 0x86, 0x19, 0x83, 0x00, 0x00, 0x01 };
+
 int vflag;
 int xflag;
 
@@ -21,8 +25,8 @@ double next_data_ts;
 int sock;
 struct sockaddr_in hen_addr;
 
-int hen_nodenum = 99;
-int my_nodenum = 100;
+int hen_nodenum = 98;
+int my_nodenum = 70;
 int last_rcv_strength;
 uint32_t series_number;
 
@@ -280,10 +284,11 @@ main (int argc, char **argv)
 	while (1) {
 		rcv_soak ();
 		
-		collect_data ();
-		if (xflag)
+		if (xflag) {
+			collect_data ();
 			maybe_xmit ();
-
+		}
+		
 		now = get_secs ();
 		if (now < listen_until_ts) {
 			secs = min (next_data_ts, listen_until_ts) - now;
@@ -309,17 +314,61 @@ main (int argc, char **argv)
 }
 
 void
+handle_probe (struct sockaddr_in *raddr, unsigned char *rbuf, int rlen)
+{
+	unsigned char xbuf[10000];
+	int xlen;
+	int off, togo;
+	
+	off = PKT_PAYLOAD;
+	togo = rlen - off;
+
+	if (togo != 6) {
+		printf ("bad probe pkt length\n");
+		dump (rbuf, rlen);
+		return;
+	}
+
+	if (memcmp (rbuf + off, my_mac_addr, 6) != 0) {
+		printf ("probe: mac mismatch\n");
+		return;
+	}
+
+	xbuf[PKT_TO_NODENUM] = rbuf[PKT_FROM_NODENUM];
+	xbuf[PKT_FROM_NODENUM] = my_nodenum;
+	xbuf[PKT_OP] = OP_PROBE_RESPONSE;
+	xlen = 3;
+	
+	dump (xbuf, xlen);
+	sendto (sock, xbuf, xlen, 0, (struct sockaddr *)raddr, sizeof *raddr);
+}
+
+void
 rcv_soak (void)
 {
 	struct sockaddr_in raddr;
 	socklen_t raddr_len;
-	char buf[10000];
+	unsigned char rbuf[10000];
 	int len;
 
 	raddr_len = sizeof raddr;
 
-	while ((len = recvfrom (sock, buf, sizeof buf, 0,
+	while ((len = recvfrom (sock, rbuf, sizeof rbuf, 0,
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
-		dump (buf, len);
+		if (vflag)
+			dump (rbuf, len);
+		if (len < PKT_PAYLOAD)
+			continue;
+		if (rbuf[PKT_TO_NODENUM] != BROADCAST_NODENUM)
+			continue;
+
+		switch (rbuf[PKT_OP]) {
+		case OP_PROBE:
+			handle_probe (&raddr, rbuf, len);
+			break;
+		default:
+			dump (rbuf, len);
+			break;
+		}
 	}
 }

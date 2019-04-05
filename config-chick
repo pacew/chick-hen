@@ -3,9 +3,27 @@
 import sys
 import socket
 import json
+import hashlib
+
+MY_NODENUM = 98
 
 CHICK_HEN_MADDR = "224.0.0.130"
 CHICK_HEN_PORT = 32519
+
+def dump(buf):
+   if buf is None:
+      print("None")
+      return
+   
+   start = 0
+   while start < len(buf):
+      print('{0:04x}:'.format(start), end='')
+      for off in range (0, 16):
+         if (start + off >= len(buf)):
+            break
+         print(' {0:2x}'.format(buf[start+off]), end='')
+      print('')
+      start += 16
 
 sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -18,6 +36,13 @@ except (OSError, ValueError):
    print ("Can't parse cfg.json")
    sys.exit(1)
 
+try:
+   with open(".system_key", "r") as file:
+      system_key = bytes.fromhex(file.read().strip());
+except OSError:
+   print ("bad .system_key")
+   sys.exit(1)
+
 def get_config(num):
    for node in cfg:
       if (int(node["node"]) == num):
@@ -26,16 +51,37 @@ def get_config(num):
 
 if len(sys.argv) != 2:
    print ("usage: config-check nodenum")
-   sys.exit (1)
+   sys.exit(1)
 
 node = get_config (int(sys.argv[1]))
 
-nchans = len(node['channels'])
-print ("set nchans to", nchans)
+def send_rcv(msg):
+   for retry in range(0, 2):
+      print("xmit", retry)
+      sock.sendto(msg, (CHICK_HEN_MADDR, CHICK_HEN_PORT))
 
-for chan in node['channels']:
-   print(chan)
+      try:
+         sock.settimeout(.1)
+         (rpkt, addr) = sock.recvfrom(10000)
+         if rpkt[0] == MY_NODENUM:
+            return rpkt
+      except socket.timeout:
+         print("timeout")
+      
+   return None
 
 
+msg = bytearray()
+msg.append(99) # to broadcast addr
+msg.append(MY_NODENUM) # from addr
+msg.append(0x40) # OP_PROBE
 
+mac = node['mac'].split(':')
+for i in range(0,6):
+   msg.append(int(mac[i], 16))
+
+dump(msg)
+
+rpkt = send_rcv(msg)
+dump(rpkt)
 

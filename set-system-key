@@ -1,0 +1,22 @@
+#! /usr/bin/env python3
+
+import sys
+import hashlib
+
+if len(sys.argv) != 2:
+   print ("usage: set-system-key password")
+   sys.exit(1)
+
+pw = sys.argv[1]
+
+system_key = hashlib.pbkdf2_hmac("sha256", pw.encode("utf8"), b'22906', 100000)
+
+try:
+   with open(".system_key", "w") as file:
+      file.write(system_key.hex())
+      file.write ("\n")
+except OSError:
+   print ("can't create .system_key")
+   sys.exit(1)
+
+
