@@ -29,9 +29,8 @@ with open("chick-hen.proto", "r") as file:
 
 basename = "proto-gen"
 
-pp = pprint.PrettyPrinter(indent=4)
-with open(basename+".py", "w") as file:
-   file.write (pp.pformat (proto))
+with open(basename+".json", "w") as file:
+   json.dump(proto, file, indent=4)
    file.write ("\n")
 
 with open(basename+".h", "w") as file:

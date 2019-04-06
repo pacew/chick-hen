@@ -13,11 +13,11 @@ chick: $(CHICK_OBJS)
 
 $(CHICK_OBJS) $(HEN_OBJS): proto-common.h proto-gen.h
 
-proto-gen.h proto-gen.c proto-gen.py: genproto
+proto-gen.h proto-gen.c proto-gen.json: genproto
 	./genproto
 
 clean:
 	rm -f hen chick
 	rm -f *.o *~
-	rm proto-gen.[ch] proto-gen.py
+	rm proto-gen.[ch] proto-gen.json
 

@@ -96,13 +96,14 @@ decode_val (struct proto_buf *pb, int bits)
 	output = 0;
 	output_shift = 0;
 	while (togo > 0) {
-		if (pb->used_bits >= pb->avail_bits)
-			break;
 		byte_off = pb->used_bits / 8;
 		bit_off = pb->used_bits & 7;
 		thistime = 8 - bit_off;
 		if (thistime > togo)
 			thistime = togo;
+		if (pb->used_bits + thistime > pb->avail_bits)
+			break;
+
 		mask = (1 << thistime) - 1;
 
 		loc = pb->base + byte_off;
