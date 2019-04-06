@@ -5,10 +5,14 @@ import socket
 import json
 import hashlib
 
+import proto
+
 MY_NODENUM = 98
 
 CHICK_HEN_MADDR = "224.0.0.130"
 CHICK_HEN_PORT = 32519
+
+proto.load_protocol("proto-gen.json")
 
 def dump(buf):
    if buf is None:
@@ -72,6 +76,27 @@ def send_rcv(msg):
 
 
 def doit():
+   probe = {}
+   mac = node['mac'].split(':')
+   probe['mac0'] = int(mac[0],16)
+   probe['mac1'] = int(mac[1],16)
+   probe['mac2'] = int(mac[2],16)
+   probe['mac3'] = int(mac[3],16)
+   probe['mac4'] = int(mac[4],16)
+   probe['mac5'] = int(mac[5],16)
+
+   hdr = {}
+   hdr['to_nodenum'] = 99
+   hdr['from_nodenum'] = MY_NODENUM
+   hdr['op'] = proto.get_op('probe')
+
+   pb = proto.encode_init()
+   proto.encode(pb, "hdr", hdr)
+   proto.encode(pb, "probe", probe)
+   print(pb)
+
+
+def xdoit():
    msg = bytearray()
    msg.append(99) # to broadcast addr
    msg.append(MY_NODENUM) # from addr
@@ -86,3 +111,5 @@ def doit():
       rpkt = send_rcv(msg)
       dump(rpkt)
 
+
+doit()

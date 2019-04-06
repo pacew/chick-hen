@@ -1,23 +1,30 @@
-pkt hdr
+pkt probe 65
+8 mac0
+8 mac1
+8 mac2
+8 mac3
+8 mac4
+8 mac5
+
+pkt hdr 0
 8 to_nodenum
 8 from_nodenum
 5 op
-32 hmac
 
-pkt data
+pkt data 0
 8 last_strength
 24 seq
 # raw data follows
 
-pkt ack
+pkt ack 66
 8 last_strength
 24 ack
 
-pkt set_params
+pkt set_params 67
 14 record_interval_secs
 14 xmit_interval_secs
 
-pkt status
+pkt status 68
 8 last_strength
 24 series_number
 24 config_hash
@@ -25,7 +32,7 @@ pkt status
 32 acked_timestamp
 24 newest_seq
 
-pkt chan_config
+pkt chan_config 69
 6 idx
 6 nbits
 6 input_chan

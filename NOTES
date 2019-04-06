@@ -8,7 +8,7 @@ https://github.com/Teserakt-io/SHA3-AVR
 
 blake2
 
-HMAC-SHA256
+nodemcu supports HMAC-SHA256 so we'll use that
 
 
 https://nodemcu.readthedocs.io/en/master/modules/struct/

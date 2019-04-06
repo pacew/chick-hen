@@ -9,6 +9,7 @@ import pprint
 
 proto = {}
 proto['pkts'] = {}
+ops_used = set()
 with open("chick-hen.proto", "r") as file:
    pktname = None
    for line in file:
@@ -19,9 +20,19 @@ with open("chick-hen.proto", "r") as file:
       elif words[0] == "":
          continue
       elif words[0] == "pkt":
+         if len(words) != 3:
+            print("invalid pkt:", words)
+            sys.exit(1)
          pktname = words[1]
-         proto['pkts'][pktname] = {}
-         proto['pkts'][pktname]['fields'] = []
+         op = int(words[2])
+         if op != 0 and op in ops_used:
+            print("duplicate op", words)
+            sys.exit(1)
+         ops_used.add(op)
+         pkt = {}
+         pkt['op'] = op
+         pkt['fields'] = []
+         proto['pkts'][pktname] = pkt
       else:
          bits = int(words[0])
          field = words[1]

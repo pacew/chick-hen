@@ -6,6 +6,7 @@ import json
 import hashlib
 import re
 import pprint
+import unittest
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -25,15 +26,19 @@ def dump(buf):
       start += 16
 
 
+def load_protocol(filename):
+   global the_protocol
+   try:
+      with open (filename) as json_file:
+         the_protocol = json.load (json_file)
+   except (OSError, ValueError):
+      raise ValueError
 
-try:
-   with open ("proto-gen.json") as json_file:
-      proto = json.load (json_file)
-except (OSError, ValueError):
-   print ("Can't parse proto-gen.json")
-   sys.exit(1)
-      
-def proto_init_encode():
+def get_op(name):
+   global the_protocol
+   return the_protocol['pkts'][name]['op']
+
+def encode_init():
    return dict(buf=bytearray(), avail_bits=0)
 
 def encode_val(pb, val, bits):
@@ -56,7 +61,7 @@ def encode_val(pb, val, bits):
       remaining_val >>= thistime
    pb['avail_bits'] = avail_bits
 
-def proto_init_decode(buf):
+def decode_init(buf):
    return dict(buf=buf, avail_bits=len(buf)*8, used_bits=0)
 
 def decode_val(pb, bits):
@@ -85,17 +90,19 @@ def decode_val(pb, bits):
    pb['used_bits'] = used_bits
    return output
 
-def proto_encode(pb, pkt_name, pval):
-   desc = proto['pkts'][pkt_name]
+def encode(pb, pkt_name, pval):
+   global the_protocol
+   desc = the_protocol['pkts'][pkt_name]
    for fdata in desc['fields']:
       field_name = fdata['field']
       bits = fdata['bits']
       val = pval[field_name]
       encode_val (pb, val, bits)
 
-def proto_decode(pb, pkt_name):
+def decode(pb, pkt_name):
+   global the_protocol
    pval = {}
-   desc = proto['pkts'][pkt_name]
+   desc = the_protocol['pkts'][pkt_name]
    for fdata in desc['fields']:
       field_name = fdata['field']
       bits = fdata['bits']
@@ -103,15 +110,18 @@ def proto_decode(pb, pkt_name):
       pval[field_name] = val
    return pval
       
-cfg = dict(idx=1, nbits=2, input_chan=3, options=4, last=5)
-pb = proto_init_encode ()
 
-proto_encode (pb, 'chan_config', cfg)
-dump (pb['buf'])
+class TestProto(unittest.TestCase):
+   def test_proto(self):
+      load_protocol("proto-gen.json")
+      
+      cfg = dict(idx=1, nbits=2, input_chan=3, options=4, last=5)
+      pb = encode_init ()
 
-buf = pb['buf']
-pb = proto_init_decode (buf)
-pval = proto_decode (pb, 'chan_config')
-print (pval)
+      encode (pb, 'chan_config', cfg)
+      dump (pb['buf'])
 
-
+      buf = pb['buf']
+      pb = decode_init (buf)
+      pval = decode (pb, 'chan_config')
+      print (pval)

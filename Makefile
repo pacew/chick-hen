@@ -21,3 +21,5 @@ clean:
 	rm -f *.o *~
 	rm proto-gen.[ch] proto-gen.json
 
+test:
+	python3 -m unittest proto.py
