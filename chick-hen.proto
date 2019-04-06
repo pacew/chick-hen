@@ -1,41 +1,34 @@
+pkt hdr
+8 to_nodenum
+8 from_nodenum
+5 op
+32 hmac
+
 pkt data
-i1 to_nodenum
-i1 from_nodenum
-i3 seq
-i4 hmac
+8 last_strength
+24 seq
 # raw data follows
 
 pkt ack
-i1 to_nodenum
-i1 from_nodenum
-i1 xmit_params
-i3 ack
-i4 hmac
+8 last_strength
+24 ack
 
 pkt set_params
-i1 to_nodenum
-i1 opcode
-i2 record_interval_secs
-i2 xmit_interval_secs
-i4 hmac
+14 record_interval_secs
+14 xmit_interval_secs
 
 pkt status
-i1 to_nodenum
-i1 from_nodenum
-i1 last_strength
-i3 series_number
-i3 acked_seq
-i4 acked_timestamp
-i3 newest_seq
-i4 hmac
+8 last_strength
+24 series_number
+24 config_hash
+24 acked_seq
+32 acked_timestamp
+24 newest_seq
 
-pkt data_item
-i1 idx
-i1 nbits
-i1 input_chan
-i4 offset
-i4 scale
-i1 output_offset
-i1 output_shift
-i4 options
+pkt chan_config
+6 idx
+6 nbits
+6 input_chan
+16 options
+1 last
 
