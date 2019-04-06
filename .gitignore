@@ -4,3 +4,6 @@
 hen
 chick
 .system_key
+proto-gen.c
+proto-gen.h
+proto-gen.py

@@ -71,17 +71,18 @@ def send_rcv(msg):
    return None
 
 
-msg = bytearray()
-msg.append(99) # to broadcast addr
-msg.append(MY_NODENUM) # from addr
-msg.append(0x40) # OP_PROBE
+def doit():
+   msg = bytearray()
+   msg.append(99) # to broadcast addr
+   msg.append(MY_NODENUM) # from addr
+   msg.append(0x40) # OP_PROBE
 
-mac = node['mac'].split(':')
-for i in range(0,6):
-   msg.append(int(mac[i], 16))
+   mac = node['mac'].split(':')
+   for i in range(0,6):
+      msg.append(int(mac[i], 16))
 
-dump(msg)
+      dump(msg)
 
-rpkt = send_rcv(msg)
-dump(rpkt)
+      rpkt = send_rcv(msg)
+      dump(rpkt)
 

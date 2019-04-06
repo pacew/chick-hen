@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 
 #include "multicast.h"
-#include "proto.h"
+#include "proto-gen.h"
 
 #define CHICK_HEN_MADDR "224.0.0.130"
 #define CHICK_HEN_PORT 32519

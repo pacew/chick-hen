@@ -236,6 +236,32 @@ maybe_xmit (void)
 	listen_until_ts = last_xmit_ts + LISTEN_INTERVAL_SECS;
 }
 
+void
+ptest (void)
+{
+	struct proto_chan_config cfg;
+	struct proto_buf pb;
+	char buf[1000];
+	int n;
+
+	memset (&cfg, 0, sizeof cfg);
+	cfg.idx = 1;
+	cfg.nbits = 2;
+	cfg.input_chan = 3;
+	cfg.options = 4;
+	cfg.last = 5;
+	proto_print (stdout, &proto_chan_config_desc, &cfg);
+
+	proto_init (&pb, buf, sizeof buf);
+	n = proto_encode (&pb, &proto_chan_config_desc, &cfg);
+	dump (buf, n);
+
+	memset (&cfg, 0x55, sizeof cfg);
+	proto_init (&pb, buf, n);
+	proto_decode (&pb, &proto_chan_config_desc, &cfg);
+	proto_print (stdout, &proto_chan_config_desc, &cfg);
+}
+
 
 int
 main (int argc, char **argv)
@@ -247,6 +273,7 @@ main (int argc, char **argv)
 	double now;
 	double secs;
 	
+	ptest ();
 	last_rcv_strength = 0xaa;
 	next_seq = 0x123456;
 	series_number = 0xaabbccdd;
