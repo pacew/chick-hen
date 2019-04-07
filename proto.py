@@ -7,6 +7,7 @@ import hashlib
 import re
 import pprint
 import unittest
+import hmac
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -28,12 +29,12 @@ def dump(buf):
 
 def load_protocol(filename):
    global the_protocol
-   try:
-      with open (filename) as json_file:
-         the_protocol = json.load (json_file)
-   except (OSError, ValueError):
-      raise ValueError
-
+   with open(filename) as file:
+      the_protocol = json.load(file)
+   global system_key
+   with open(".system_key") as file:
+      system_key = bytes.fromhex(file.readline().strip())
+      
 def get_op(name):
    global the_protocol
    return the_protocol['pkts'][name]['op']
@@ -61,8 +62,19 @@ def encode_val(pb, val, bits):
       remaining_val >>= thistime
    pb['avail_bits'] = avail_bits
 
-def decode_init(buf):
-   return dict(buf=buf, avail_bits=len(buf)*8, used_bits=0)
+def sign(pb):
+   d = compute_digest(pb['buf'])
+   pb['buf'].extend(d)
+
+def decode_init(full_buf):
+   global system_key
+   buf = full_buf[0:-4]
+   sig = full_buf[-4:]
+
+   d = compute_digest(buf)
+   sig_ok = (sig == d)
+
+   return dict(buf=buf, avail_bits=len(buf)*8, used_bits=0, sig_ok=sig_ok)
 
 def decode_val(pb, bits):
    togo = bits
@@ -101,27 +113,34 @@ def encode(pb, pkt_name, pval):
 
 def decode(pb, pkt_name):
    global the_protocol
-   pval = {}
+
    desc = the_protocol['pkts'][pkt_name]
+   pval = {}
    for fdata in desc['fields']:
       field_name = fdata['field']
       bits = fdata['bits']
       val = decode_val (pb, bits)
       pval[field_name] = val
    return pval
-      
+
+def compute_digest(buf):
+   global system_key
+   h = hmac.new(system_key, buf, "sha256")
+   d = h.digest()
+   return (d[0:4])
 
 class TestProto(unittest.TestCase):
    def test_proto(self):
       load_protocol("proto-gen.json")
       
       cfg = dict(idx=1, nbits=2, input_chan=3, options=4, last=5)
-      pb = encode_init ()
+      pb = encode_init()
 
-      encode (pb, 'chan_config', cfg)
-      dump (pb['buf'])
+      encode(pb, 'chan_config', cfg)
+      sign(pb)
 
       buf = pb['buf']
-      pb = decode_init (buf)
-      pval = decode (pb, 'chan_config')
-      print (pval)
+      pb = decode_init(buf)
+      pval = decode(pb, 'chan_config')
+      print(pval)
+      print(pb)

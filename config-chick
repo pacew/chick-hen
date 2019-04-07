@@ -93,6 +93,7 @@ def doit():
    pb = proto.encode_init()
    proto.encode(pb, "hdr", hdr)
    proto.encode(pb, "probe", probe)
+   proto.sign(pb)
    proto.dump(pb['buf'])
 
    rpkt = send_rcv(pb['buf'])
