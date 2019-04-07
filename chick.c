@@ -252,13 +252,13 @@ ptest (void)
 	cfg.last = 5;
 	proto_print (stdout, &proto_chan_config_desc, &cfg);
 
-	proto_init (&pb, buf, sizeof buf);
+	proto_encode_init (&pb, buf, sizeof buf);
 	proto_encode (&pb, &proto_chan_config_desc, &cfg);
 	n = proto_used (&pb);
 	dump (buf, n);
 
 	memset (&cfg, 0x55, sizeof cfg);
-	proto_init (&pb, buf, n);
+	proto_decode_init (&pb, buf, n);
 	proto_decode (&pb, &proto_chan_config_desc, &cfg);
 	proto_print (stdout, &proto_chan_config_desc, &cfg);
 }
@@ -364,7 +364,7 @@ handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 		return;
 	}
 
-	proto_init (&xpb, xbuf, sizeof xbuf);
+	proto_encode_init (&xpb, xbuf, sizeof xbuf);
 	xhdr.to_nodenum = rhdr->from_nodenum;
 	xhdr.from_nodenum = my_nodenum;
 	xhdr.op = OP_PROBE_RESPONSE;
@@ -393,7 +393,8 @@ rcv_soak (void)
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
 		if (vflag)
 			dump (rbuf, len);
-		proto_init (&pb, rbuf, len);
+		proto_decode_init (&pb, rbuf, len);
+		printf ("sig_ok = %d\n", pb.sig_ok);
 
 		proto_decode (&pb, &proto_hdr_desc, &hdr);
 

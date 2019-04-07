@@ -1,13 +1,13 @@
 CFLAGS = -g -Wall
-LIBS = -lm
+LIBS = -lcrypto -lm
 
 all: hen chick
 
-HEN_OBJS = hen.o wire.o multicast.o proto-common.o proto-gen.o
+HEN_OBJS = hen.o wire.o multicast.o proto-common.o proto-gen.o digest.o
 hen: $(HEN_OBJS)
-	$(CC) $(CFLAGS) -o hen $(HEN_OBJS)
+	$(CC) $(CFLAGS) -o hen $(HEN_OBJS) $(LIBS)
 
-CHICK_OBJS = chick.o wire.o multicast.o proto-common.o proto-gen.o
+CHICK_OBJS = chick.o wire.o multicast.o proto-common.o proto-gen.o digest.o
 chick: $(CHICK_OBJS)
 	$(CC) $(CFLAGS) -o chick $(CHICK_OBJS) $(LIBS)
 

@@ -119,12 +119,34 @@ decode_val (struct proto_buf *pb, int bits)
 }
 
 void
-proto_init (struct proto_buf *pb, void *buf, int size)
+proto_encode_init (struct proto_buf *pb, void *buf, int size)
 {
+	memset (pb, 0, sizeof *pb);
 	pb->base = buf;
-	pb->used_bits = 0;
 	pb->avail_bits = size * 8;
-	pb->err = 0;
+}
+
+void
+proto_decode_init (struct proto_buf *pb, void *buf, int full_size)
+{
+	unsigned char *pkt_sig;
+	int size;
+	struct proto_digest computed_sig;
+	
+	memset (pb, 0, sizeof *pb);
+
+	if (full_size < 4)
+		return;
+	pkt_sig = buf + full_size - 4;
+	size = full_size - 4;
+
+	compute_digest (&computed_sig, buf, size);
+
+	if (memcmp (computed_sig.digest, pkt_sig, 4) == 0)
+		pb->sig_ok = 1;
+
+	pb->base = buf;
+	pb->avail_bits = size * 8;
 }
 
 /* returns -1 on output overflow, number of bytes occupied by output */

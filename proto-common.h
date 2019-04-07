@@ -19,14 +19,21 @@ struct proto_buf {
 	void *base;
 	int used_bits;
 	int avail_bits;
+	int sig_ok;
 };
 
-void proto_init (struct proto_buf *pb, void *buf, int size);
+struct proto_digest {
+	unsigned char digest[4];
+};
+
+void proto_decode_init (struct proto_buf *pb, void *buf, int size);
+void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
 void proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
 int proto_used (struct proto_buf *pb);
 void proto_decode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
 
+void compute_digest (struct proto_digest *dp, void *buf, int len);
 
 
 #define CHICK_HEN_VERS 1
