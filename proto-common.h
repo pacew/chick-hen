@@ -26,14 +26,18 @@ struct proto_digest {
 	unsigned char digest[4];
 };
 
+unsigned char my_mac_addr[6];
+
 void proto_decode_init (struct proto_buf *pb, void *buf, int size);
 void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
 void proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
+void proto_sign (struct proto_buf *pb);
 int proto_used (struct proto_buf *pb);
 void proto_decode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
 
 void compute_digest (struct proto_digest *dp, void *buf, int len);
+int scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder);
 
 
 #define CHICK_HEN_VERS 1

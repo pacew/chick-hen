@@ -368,13 +368,48 @@ handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	xhdr.to_nodenum = rhdr->from_nodenum;
 	xhdr.from_nodenum = my_nodenum;
 	xhdr.op = OP_PROBE_RESPONSE;
-	pr.foo = 99;
 	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
 	proto_encode (&xpb, &proto_probe_response_desc, &pr);
 	xlen = proto_used (&xpb);
 	dump (xbuf, xlen);
 
 	sendto (sock, xbuf, xlen, 0, (struct sockaddr *)raddr, sizeof *raddr);
+}
+
+void
+handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
+	     struct proto_buf *pb)
+{
+	unsigned char xbuf[10000];
+	int xlen;
+	struct proto_scan scan;
+	struct proto_buf xpb;
+	struct proto_hdr xhdr;
+	struct proto_probe_response pr;
+	
+	proto_decode (pb, &proto_scan_desc, &scan);
+
+	if (scan_digest (scan.key, scan.divisor, scan.remainder)) {
+		xhdr.to_nodenum = rhdr->from_nodenum;
+		xhdr.from_nodenum = my_nodenum;
+		xhdr.op = OP_PROBE_RESPONSE;
+		pr.mac0 = my_mac_addr[0];
+		pr.mac1 = my_mac_addr[1];
+		pr.mac2 = my_mac_addr[2];
+		pr.mac3 = my_mac_addr[3];
+		pr.mac4 = my_mac_addr[4];
+		pr.mac5 = my_mac_addr[5];
+
+		proto_encode_init (&xpb, xbuf, sizeof xbuf);
+		proto_encode (&xpb, &proto_hdr_desc, &xhdr);
+		proto_encode (&xpb, &proto_probe_response_desc, &pr);
+		proto_sign (&xpb);
+		xlen = proto_used (&xpb);
+		dump (xbuf, xlen);
+
+		sendto (sock, xbuf, xlen, 0, 
+			(struct sockaddr *)raddr, sizeof *raddr);
+	}
 }
 
 void
@@ -404,6 +439,9 @@ rcv_soak (void)
 		switch (hdr.op) {
 		case OP_PROBE:
 			handle_probe (&raddr, &hdr, &pb);
+			break;
+		case OP_SCAN:
+			handle_scan (&raddr, &hdr, &pb);
 			break;
 		default:
 			dump (rbuf, len);

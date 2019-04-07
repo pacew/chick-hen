@@ -172,6 +172,22 @@ proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval)
 	}
 }
 
+void
+proto_sign (struct proto_buf *pb)
+{
+	struct proto_digest d;
+	int used_bytes;
+	
+	used_bytes = proto_used (pb);
+	if ((used_bytes + sizeof d.digest) * 8 > pb->avail_bits) {
+		pb->err = 1;
+		return;
+	}
+	compute_digest (&d, pb->base, used_bytes);
+	memcpy (pb->base + used_bytes, d.digest, sizeof d.digest);
+	pb->used_bits += sizeof d.digest * 8;
+}
+
 int
 proto_used (struct proto_buf *pb)
 {

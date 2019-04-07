@@ -1,0 +1,50 @@
+#! /usr/bin/env python3
+
+import sys
+import socket
+import json
+import hashlib
+
+import proto
+
+proto.init()
+
+def doit():
+   key = 1
+   divisor = 3
+   for rem in range(0,divisor):
+      print ("scan", rem, "of ", divisor);
+      scan = dict(key=key, divisor=divisor, remainder=rem, jitter=0)
+
+      hdr = {}
+      hdr['to_nodenum'] = proto.BROADCAST_NODENUM
+      hdr['from_nodenum'] = proto.MY_NODENUM
+      hdr['op'] = proto.get_op('scan')
+
+      pb = proto.encode_init()
+      proto.encode(pb, "hdr", hdr)
+      proto.encode(pb, "scan", scan)
+      proto.sign(pb)
+      proto.dump(pb['buf'])
+
+      proto.send(pb['buf'])
+      probe_response_op = proto.get_op('probe_response')
+      print(probe_response_op)
+      while True:
+         rpkt = proto.rcv()
+         if rpkt == None:
+            break
+         proto.dump(rpkt)
+         pb = proto.decode_init(rpkt)
+         hdr = proto.decode(pb, 'hdr')
+         if hdr['op'] == probe_response_op:
+            resp = proto.decode(pb, 'probe_response')
+            mac = '{0:02x}:{1:02x}:{2:02x}:{3:02x}:{4:02x}:{5:02x}'.format(
+               resp['mac0'], resp['mac1'], resp['mac2'], 
+               resp['mac3'], resp['mac4'], resp['mac5'])
+            print("node", hdr['from_nodenum'], "mac", mac)
+
+               
+
+
+doit()

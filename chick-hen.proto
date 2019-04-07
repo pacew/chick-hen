@@ -1,3 +1,9 @@
+pkt scan 71
+8 key
+8 divisor
+8 remainder
+8 jitter
+
 pkt probe 65
 8 mac0
 8 mac1
@@ -7,7 +13,13 @@ pkt probe 65
 8 mac5
 
 pkt probe_response 70
-8 foo
+8 mac0
+8 mac1
+8 mac2
+8 mac3
+8 mac4
+8 mac5
+
 
 
 pkt hdr 0

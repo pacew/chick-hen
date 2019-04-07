@@ -8,6 +8,13 @@ import re
 import pprint
 import unittest
 import hmac
+import time
+
+BROADCAST_NODENUM = 99
+MY_NODENUM = 98
+
+CHICK_HEN_MADDR = "224.0.0.130"
+CHICK_HEN_PORT = 32519
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -128,6 +135,45 @@ def compute_digest(buf):
    h = hmac.new(system_key, buf, "sha256")
    d = h.digest()
    return (d[0:4])
+
+def send(msg):
+   global sock
+   sock.sendto(msg, (CHICK_HEN_MADDR, CHICK_HEN_PORT))
+
+def rcv(delay=0):
+   global sock
+
+   if delay == 0:
+      delay = 0.250
+      
+   while True:
+      try:
+         sock.settimeout(delay)
+         (rpkt, addr) = sock.recvfrom(10000)
+         if rpkt[0] == MY_NODENUM:
+            return rpkt
+      except socket.timeout:
+         break
+
+   return None
+
+def send_rcv(msg, retries=0, delay=0):
+   if retries == 0:
+      retries = 2
+
+   for retry in range(0, retries):
+      send(msg)
+      rpkt = rcv(delay)
+      if rpkt != None:
+         return rpkt
+
+   return None
+
+def init():
+   global sock
+   load_protocol("proto-gen.json")
+   sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
+
 
 class TestProto(unittest.TestCase):
    def test_proto(self):

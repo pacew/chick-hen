@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <memory.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -48,4 +49,24 @@ compute_digest (struct proto_digest *dp, void *buf, int len)
 	     full_digest, NULL);
 
 	memcpy (dp->digest, full_digest, sizeof dp->digest);
+}
+
+int
+scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder)
+{
+	unsigned char full_digest[EVP_MAX_MD_SIZE];
+
+	HMAC(EVP_sha256(),
+	     &key, 1,
+	     my_mac_addr, 6,
+	     full_digest, NULL);
+
+	printf ("scan %d %d %d = %d\n",
+		full_digest[0], divisor, remainder,
+		full_digest[0] % divisor);
+
+	if (full_digest[0] % divisor == remainder)
+		return (1);
+
+	return (0);
 }
