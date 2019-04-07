@@ -121,14 +121,14 @@ decode_val (struct proto_buf *pb, int bits)
 void
 proto_init (struct proto_buf *pb, void *buf, int size)
 {
-	memset (pb, 0, sizeof *pb);
 	pb->base = buf;
 	pb->used_bits = 0;
 	pb->avail_bits = size * 8;
+	pb->err = 0;
 }
 
 /* returns -1 on output overflow, number of bytes occupied by output */
-int
+void
 proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval)
 {
 	int fieldnum;
@@ -138,13 +138,23 @@ proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval)
 	for (fieldnum = 0, fp = desc->fields; 
 	     fieldnum < desc->nfields; 
 	     fieldnum++, fp++) {
-		if (pb->used_bits + fp->bits > pb->avail_bits)
-			return (-1);
+		if (pb->used_bits + fp->bits > pb->avail_bits) {
+			pb->err = 1;
+			break;
+		}
 		val = getval (fp, cval);
-		if (encode_val (pb, val, fp->bits) < 0)
-			return (-1);
+		if (encode_val (pb, val, fp->bits) < 0) {
+			pb->err = 1;
+			break;
+		}
 	}
+}
 
+int
+proto_used (struct proto_buf *pb)
+{
+	if (pb->err)
+		return (-1);
 	return ((pb->used_bits + 7) / 8);
 }
 

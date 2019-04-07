@@ -93,23 +93,12 @@ def doit():
    pb = proto.encode_init()
    proto.encode(pb, "hdr", hdr)
    proto.encode(pb, "probe", probe)
-   print(pb)
+   proto.dump(pb['buf'])
+
+   rpkt = send_rcv(pb['buf'])
+   dump(rpkt)
 
 
-def xdoit():
-   msg = bytearray()
-   msg.append(99) # to broadcast addr
-   msg.append(MY_NODENUM) # from addr
-   msg.append(0x40) # OP_PROBE
-
-   mac = node['mac'].split(':')
-   for i in range(0,6):
-      msg.append(int(mac[i], 16))
-
-      dump(msg)
-
-      rpkt = send_rcv(msg)
-      dump(rpkt)
 
 
 doit()

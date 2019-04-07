@@ -6,10 +6,14 @@ pkt probe 65
 8 mac4
 8 mac5
 
+pkt probe_response 70
+8 foo
+
+
 pkt hdr 0
 8 to_nodenum
 8 from_nodenum
-5 op
+8 op
 
 pkt data 0
 8 last_strength

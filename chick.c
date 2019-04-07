@@ -253,7 +253,8 @@ ptest (void)
 	proto_print (stdout, &proto_chan_config_desc, &cfg);
 
 	proto_init (&pb, buf, sizeof buf);
-	n = proto_encode (&pb, &proto_chan_config_desc, &cfg);
+	proto_encode (&pb, &proto_chan_config_desc, &cfg);
+	n = proto_used (&pb);
 	dump (buf, n);
 
 	memset (&cfg, 0x55, sizeof cfg);
@@ -341,32 +342,38 @@ main (int argc, char **argv)
 }
 
 void
-handle_probe (struct sockaddr_in *raddr, unsigned char *rbuf, int rlen)
+handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
+	      struct proto_buf *pb)
 {
 	unsigned char xbuf[10000];
 	int xlen;
-	int off, togo;
+	struct proto_probe probe;
+	struct proto_buf xpb;
+	struct proto_hdr xhdr;
+	struct proto_probe_response pr;
 	
-	off = PKT_PAYLOAD;
-	togo = rlen - off;
+	proto_decode (pb, &proto_probe_desc, &probe);
 
-	if (togo != 6) {
-		printf ("bad probe pkt length\n");
-		dump (rbuf, rlen);
-		return;
-	}
-
-	if (memcmp (rbuf + off, my_mac_addr, 6) != 0) {
+	if (probe.mac0 != my_mac_addr[0]
+	    || probe.mac1 != my_mac_addr[1]
+	    || probe.mac2 != my_mac_addr[2]
+	    || probe.mac3 != my_mac_addr[3]
+	    || probe.mac4 != my_mac_addr[4]
+	    || probe.mac5 != my_mac_addr[5]) {
 		printf ("probe: mac mismatch\n");
 		return;
 	}
 
-	xbuf[PKT_TO_NODENUM] = rbuf[PKT_FROM_NODENUM];
-	xbuf[PKT_FROM_NODENUM] = my_nodenum;
-	xbuf[PKT_OP] = OP_PROBE_RESPONSE;
-	xlen = 3;
-	
+	proto_init (&xpb, xbuf, sizeof xbuf);
+	xhdr.to_nodenum = rhdr->from_nodenum;
+	xhdr.from_nodenum = my_nodenum;
+	xhdr.op = OP_PROBE_RESPONSE;
+	pr.foo = 99;
+	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
+	proto_encode (&xpb, &proto_probe_response_desc, &pr);
+	xlen = proto_used (&xpb);
 	dump (xbuf, xlen);
+
 	sendto (sock, xbuf, xlen, 0, (struct sockaddr *)raddr, sizeof *raddr);
 }
 
@@ -377,6 +384,8 @@ rcv_soak (void)
 	socklen_t raddr_len;
 	unsigned char rbuf[10000];
 	int len;
+	struct proto_buf pb;
+	struct proto_hdr hdr;
 
 	raddr_len = sizeof raddr;
 
@@ -384,14 +393,16 @@ rcv_soak (void)
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
 		if (vflag)
 			dump (rbuf, len);
-		if (len < PKT_PAYLOAD)
-			continue;
-		if (rbuf[PKT_TO_NODENUM] != BROADCAST_NODENUM)
+		proto_init (&pb, rbuf, len);
+
+		proto_decode (&pb, &proto_hdr_desc, &hdr);
+
+		if (hdr.to_nodenum != BROADCAST_NODENUM)
 			continue;
 
-		switch (rbuf[PKT_OP]) {
+		switch (hdr.op) {
 		case OP_PROBE:
-			handle_probe (&raddr, rbuf, len);
+			handle_probe (&raddr, &hdr, &pb);
 			break;
 		default:
 			dump (rbuf, len);

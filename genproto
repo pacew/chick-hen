@@ -10,6 +10,7 @@ import pprint
 proto = {}
 proto['pkts'] = {}
 ops_used = set()
+max_op = 0
 with open("chick-hen.proto", "r") as file:
    pktname = None
    for line in file:
@@ -29,6 +30,8 @@ with open("chick-hen.proto", "r") as file:
             print("duplicate op", words)
             sys.exit(1)
          ops_used.add(op)
+         if op > max_op:
+            max_op = op
          pkt = {}
          pkt['op'] = op
          pkt['fields'] = []
@@ -37,6 +40,8 @@ with open("chick-hen.proto", "r") as file:
          bits = int(words[0])
          field = words[1]
          proto['pkts'][pktname]['fields'].append(dict (field=field, bits=bits))
+
+print ("max op", max_op)
 
 basename = "proto-gen"
 
@@ -48,6 +53,7 @@ with open(basename+".h", "w") as file:
    file.write ('#include "proto-common.h"\n')
    for pktname, pdata in proto['pkts'].items():
       struct_name = "proto_"+pktname
+      file.write("#define OP_"+pktname.upper()+" "+str(pdata['op'])+"\n")
       file.write ("struct "+struct_name+" {\n")
       for fdata in pdata['fields']:
          field = fdata['field']

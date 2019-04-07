@@ -21,7 +21,7 @@ def dump(buf):
       for off in range (0, 16):
          if (start + off >= len(buf)):
             break
-         print(' {0:2x}'.format(buf[start+off]), end='')
+         print(' {0:02x}'.format(buf[start+off]), end='')
       print('')
       start += 16
 
