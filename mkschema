@@ -1,0 +1,47 @@
+#! /usr/bin/env python3
+
+import sys
+import re
+import sqlite3
+
+conn = sqlite3.connect("hen.db")
+cur = conn.cursor()
+
+def table_exists(table):
+   cur.execute("select 1 from sqlite_master"+
+               " where type = 'table'"+
+               "   and name = ?",
+               (table,))
+   return cur.fetchone() != None
+
+def column_exists(table, column):
+   stmt = "pragma table_info({0})".format(table)
+   cur.execute(stmt)
+   for row in cur:
+      if row[1] == column:
+         return True
+   return False
+
+def make_column(table, column, typename):
+   if not table_exists(table):
+      stmt = "create table {0} ({1} {2})".format(table, column, typename)
+      print(stmt)
+      cur.execute(stmt)
+   elif not column_exists(table, column):
+      stmt = "alter table {0} add {1} {2}".format(table, column, typename)
+      print(stmt)
+      cur.execute(stmt)
+
+with open("schema") as f:
+   table = None
+   for line in f:
+      line = re.sub(re.compile("#.*"), "", line).strip()
+      words = re.split("\s+", line)
+      if len(words) == 0:
+         continue
+      if words[0] == "table":
+         table = words[1]
+      elif words[0] == "col":
+         column = words[1]
+         typename = words[2]
+         make_column (table, column, typename)

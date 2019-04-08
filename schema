@@ -1,0 +1,4 @@
+table nodes
+col id integer
+col mac string
+col last_ts timestamp
