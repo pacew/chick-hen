@@ -1,3 +1,6 @@
+local oui for pace 0x86 0x19 0x83
+
+
 https://docs.python.org/3/library/hashlib.html
 
 https://docs.google.com/document/d/17SuQxMQK-f8vAjgSNhoLvkosbVUfCL3tFeXF0Bc7bos/edit

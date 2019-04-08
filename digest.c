@@ -70,3 +70,20 @@ scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder)
 
 	return (0);
 }
+
+uint32_t
+simple_digest (void *buf, int len)
+{
+	unsigned char full_digest[EVP_MAX_MD_SIZE];
+	uint32_t val;
+
+	/* HMAC chokes if key is NULL, even if key len is 0 */
+	HMAC(EVP_sha256(),
+	     "", 0,
+	     buf, len,
+	     full_digest, NULL);
+
+	memcpy (&val, full_digest, sizeof val);
+	return (val);
+}
+

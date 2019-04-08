@@ -3,8 +3,7 @@
 #define min(a,b) ((a)<(b)?(a):(b))
 
 
-/* 0x86 0x19 0x83 is a locally administered mac prefix, randomly chosen */
-unsigned char my_mac_addr[6] = { 0x86, 0x19, 0x83, 0x00, 0x00, 0x01 };
+unsigned char *my_mac_addr;
 
 int vflag;
 int xflag;
@@ -17,7 +16,81 @@ double last_xmit_ts;
 double listen_until_ts;
 double next_data_ts;
 
+struct nvram {
+	uint8_t my_nodenum;
+	uint32_t sig;
+} __attribute__((packed));
 
+
+struct nvram nvram, nvram_saved;
+
+char nvram_filename[100];
+
+void
+nvram_startup (void)
+{
+	FILE *f;
+	int success;
+	uint32_t stored_sig;
+	
+	success = 0;
+	
+	sprintf (nvram_filename, "nvram%02x%02x%02x%02x%02x%02x",
+		 my_mac_addr[0], my_mac_addr[1], my_mac_addr[2],
+		 my_mac_addr[3], my_mac_addr[4], my_mac_addr[5]);
+
+	if ((f = fopen (nvram_filename, "r")) == NULL)
+		goto done;
+	
+	if (fread (&nvram, sizeof nvram, 1, f) != 1)
+		goto done;
+	nvram_saved = nvram;
+
+	stored_sig = nvram.sig;
+	nvram.sig = 0;
+
+	if (simple_digest (&nvram, sizeof nvram) != stored_sig) {
+		printf ("nvram cksum error\n");
+		goto done;
+	}
+
+	nvram.sig = stored_sig;
+
+	success = 1;
+
+done:
+	if (! success)
+		memset (&nvram, 0, sizeof nvram);
+
+	if (f)
+		fclose (f);
+}	
+
+void
+nvram_save (void)
+{
+	char name[1000];
+	FILE *outf;
+	
+	if (memcmp (&nvram, &nvram_saved, sizeof nvram) == 0)
+		return;
+	
+	printf ("saving updated nvram\n");
+	nvram.sig = 0;
+	nvram.sig = simple_digest (&nvram, sizeof nvram);
+
+	sprintf (name, "%s.new", nvram_filename);
+	remove (name);
+	if ((outf = fopen (name, "w")) == NULL) {
+		fprintf (stderr, "can't create %s\n", name);
+	} else {
+		fwrite (&nvram, sizeof nvram, 1, outf);
+		fclose (outf);
+		rename (name, nvram_filename);
+		nvram_saved = nvram;
+	}
+}
+		 
 
 
 #define MAX_XMIT_DPOINTS 3
@@ -236,34 +309,6 @@ maybe_xmit (void)
 	listen_until_ts = last_xmit_ts + LISTEN_INTERVAL_SECS;
 }
 
-void
-ptest (void)
-{
-	struct proto_chan_config cfg;
-	struct proto_buf pb;
-	char buf[1000];
-	int n;
-
-	memset (&cfg, 0, sizeof cfg);
-	cfg.idx = 1;
-	cfg.nbits = 2;
-	cfg.input_chan = 3;
-	cfg.options = 4;
-	cfg.last = 5;
-	proto_print (stdout, &proto_chan_config_desc, &cfg);
-
-	proto_encode_init (&pb, buf, sizeof buf);
-	proto_encode (&pb, &proto_chan_config_desc, &cfg);
-	n = proto_used (&pb);
-	dump (buf, n);
-
-	memset (&cfg, 0x55, sizeof cfg);
-	proto_decode_init (&pb, buf, n);
-	proto_decode (&pb, &proto_chan_config_desc, &cfg);
-	proto_print (stdout, &proto_chan_config_desc, &cfg);
-}
-
-
 int
 main (int argc, char **argv)
 {
@@ -274,7 +319,6 @@ main (int argc, char **argv)
 	double now;
 	double secs;
 	
-	ptest ();
 	last_rcv_strength = 0xaa;
 	next_seq = 0x123456;
 	series_number = 0xaabbccdd;
@@ -294,6 +338,15 @@ main (int argc, char **argv)
 
 	if (optind != argc)
 		usage ();
+
+	my_mac_addr = get_my_mac_addr ();
+	printf ("my mac addr %02x:%02x:%02x:%02x:%02x:%02x\n",
+		my_mac_addr[0], my_mac_addr[1], my_mac_addr[2], 
+		my_mac_addr[3], my_mac_addr[4], my_mac_addr[5]);
+
+	nvram_startup ();
+	nvram.my_nodenum = 70;
+	nvram_save ();
 
 	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
 		fprintf (stderr, "can't setup multicast\n");

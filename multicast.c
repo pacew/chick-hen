@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <memory.h>
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <linux/if_packet.h>
 
 
 #include "multicast.h"
@@ -78,4 +80,38 @@ bad:
 		close (sock);
 
 	return (-1);
+}
+
+unsigned char *
+get_my_mac_addr (void)
+{
+	struct ifaddrs *ifaddr, *ifa;
+	struct sockaddr_ll *laddr;
+	static unsigned char mac[6];
+	int i;
+
+	if (getifaddrs (&ifaddr) >= 0) {
+		for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr->sa_family != AF_PACKET)
+				continue;
+			
+			laddr = (struct sockaddr_ll *)ifa->ifa_addr;
+			
+			if (laddr->sll_halen != 6)
+				continue;
+
+			/* ignore all zero macs */
+			for (i = 0; i < 6; i++) {
+				if (laddr->sll_addr[i] != 0)
+					break;
+			}
+			if (i == 6)
+				continue;
+
+			memcpy (mac, laddr->sll_addr, 6);
+			break;
+		}
+	}
+
+	return (mac);
 }
