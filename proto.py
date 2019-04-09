@@ -9,6 +9,7 @@ import pprint
 import unittest
 import hmac
 import time
+import sqlite3
 
 BROADCAST_NODENUM = 99
 MY_NODENUM = 98
@@ -174,6 +175,40 @@ def init():
    load_protocol("proto-gen.json")
    sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
 
+conn = None
+cursor = None
+
+def query(stmt, args=()):
+   global conn
+   global cursor
+   if conn == None:
+      conn = sqlite3.connect("hen.db")
+      conn.row_factory = sqlite3.Row
+      cursor = conn.cursor()
+   return cursor.execute(stmt, args)
+
+def fetch(cur=None):
+   global cursor
+   if cur == None:
+      cur = cursor
+   return cur.fetchone()
+
+def commit():
+   global conn
+   conn.commit()
+
+def get_seq():
+   query("select lastval"+
+         " from seq")
+   r = fetch()
+   if r == None:
+      val = 100
+      query("insert into seq(lastval) values (?)", (val,))
+   else:
+      val = r['lastval'] + 1
+      query("update seq set lastval = ?", (val,))
+   commit()
+   return val
 
 class TestProto(unittest.TestCase):
    def test_proto(self):

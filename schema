@@ -1,3 +1,6 @@
+table seq
+col lastval integer
+
 table nodes
 col id integer
 col mac string
