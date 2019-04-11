@@ -112,7 +112,7 @@ function quote_for_db ($db = NULL, $str = "") {
 	return ($db->pdo->quote ($str));
 }
 
-function ckerr_mysql ($q, $stmt = "") {
+function ckerr ($q, $stmt = "") {
 	$err = $q->q->errorInfo ();
 	if ($err[0] == "00000")
 		return;
@@ -168,7 +168,7 @@ function query_db ($db, $stmt, $arr = NULL) {
 	if ($op != "commit") {
 		if ($db->in_transaction == 0) {
 			$q->q = $db->pdo->query("start transaction");
-			ckerr_mysql ($q);
+			ckerr ($q);
 			$db->in_transaction = 1;
 		}
 	}
@@ -176,7 +176,7 @@ function query_db ($db, $stmt, $arr = NULL) {
 	if ($arr === NULL) {
 		$q->q = $db->pdo->prepare ($stmt);
 		if (! $q->q->execute (NULL))
-			ckerr_mysql ($q, $stmt);
+			ckerr ($q, $stmt);
 	} else {
 		if (! is_array ($arr))
 			$arr = array ($arr);
@@ -186,7 +186,7 @@ function query_db ($db, $stmt, $arr = NULL) {
 		}
 		$q->q = $db->pdo->prepare ($stmt);
 		if (! $q->q->execute ($arr))
-			ckerr_mysql ($q, $stmt);
+			ckerr ($q, $stmt);
 		$q->row_count = $q->q->rowCount ();
 	}
 
