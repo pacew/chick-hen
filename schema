@@ -3,5 +3,10 @@ col lastval integer
 
 table nodes
 col id integer
-col mac string
+col mac varchar
 col last_ts timestamp
+
+table sessions
+col session_id varchar
+col session varchar
+col updated timestamp

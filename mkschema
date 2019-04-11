@@ -19,3 +19,5 @@ with open("schema") as f:
          column = words[1]
          typename = words[2]
          psite.make_column (table, column, typename)
+   psite.commit()
+   

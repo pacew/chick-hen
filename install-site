@@ -70,7 +70,7 @@ def setup_apache():
 
    cfg['www_dir'] = "/var/www/{0}".format(siteid)
    if not os.path.exists(cfg['www_dir']):
-      print("sudo ln -sf {0} {1}".format(cfg['webdir'], cfg['www_dir']))
+      print("sudo ln -sf {0} {1}".format(cfg['public_dir'], cfg['www_dir']))
    if not os.path.exists(cfg['auxdir']):
       print("sudo sh -c 'mkdir -pm2775 {0}; chown www-data.www-data {0}'"
             .format(cfg['auxdir']))
@@ -126,7 +126,7 @@ def get_option(name, default=None):
       return default
 
 cfg['srcdir'] = os.getcwd()
-cfg['webdir'] = "{0}/public".format(cfg['srcdir'])
+cfg['public_dir'] = "{0}/public".format(cfg['srcdir'])
 cfg['auxdir'] = "/var/{0}".format(cfg['siteid'])
 
 
