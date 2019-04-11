@@ -2,6 +2,7 @@ __pycache__/
 *~
 ?
 *.o
+TMP.*
 hen
 chick
 .system_key
