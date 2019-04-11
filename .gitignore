@@ -3,6 +3,7 @@ __pycache__/
 ?
 *.o
 TMP.*
+cfg.json
 hen
 chick
 .system_key
