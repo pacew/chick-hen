@@ -1,0 +1,160 @@
+#! /usr/bin/env python3
+
+import sys
+import json
+import re
+import os
+import socket
+import random
+
+def read_json(name):
+   try:
+      with open(name) as f:
+         val = json.load (f)
+   except(OSError, ValueError):
+      print ("Can't parse", name)
+      sys.exit(1)
+   return val
+
+def write_json(name, val):
+   with open("TMP.json", "w") as f:
+      f.write(json.dumps(val, sort_keys=True, indent=2))
+      f.write("\n")
+   os.rename("TMP.json", name)
+      
+def slurp_file(name):
+   try:
+      with open(name) as f:
+         val = f.read()
+   except(OSError):
+      val = ""
+   return val
+
+def setup_postgres():
+   cfg['dbinst'] = "local"
+
+
+def get_free_port(port_base):
+   return random.randrange(port_base, port_base + 1000)
+
+def make_url(scheme, host, port):
+   url = "{0}://{1}".format(scheme, host)
+   if port != 80 and port != 443:
+      url += ":{0}".format(port)
+   url += "/"
+   return url
+
+def make_virtual_host(ssl_flag, port):
+   conf = ""
+
+   if port != 80 and port != 443:
+      conf += "Listen {0}\n".format(port)
+
+   conf += "<VirtualHost *:{0}>\n".format(port)
+   conf += "  ServerName {0}\n".format(cfg['external_name'])
+   conf += "  ServerAlias www.{0}\n".format(cfg['external_name'])
+   conf += "  php_flag display_errors on\n"
+   conf += "  DocumentRoot {0}\n".format(cfg['www_dir'])
+   conf += "  SetEnv APP_ROOT {0}\n".format(cfg['srcdir'])
+   conf += "  <Directory {0}>\n".format(cfg['www_dir'])
+   conf += "    <IfModule valhtml_module>\n"
+   conf += "      AddOutputFilterByType VALHTML text/html\n"
+   conf += "      SetEnv no-gzip 1\n"
+   conf += "    </IfModule>\n"
+   conf += "    <FilesMatch '\.(html|css)'>\n"
+   conf += "      Header set Cache-Control 'no-cache,no-store,must-revalidate'\n"
+   conf += "      Header set Expires 0\n"
+   conf += "    </FilesMatch>\n"
+   conf += "  </Directory>\n"
+   conf += "  DirectoryIndex index.php\n"
+   conf += "  RewriteEngine on\n"
+   conf += "  RewriteCond %{REQUEST_URI} /.well-known/.*\n"
+   conf += "  RewriteRule ^(.*) /var/www/html/$1 [L]\n"
+   if not ssl_flag:
+      if cfg['ssl_url'] != "":
+         conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['ssl_url'])
+      else:
+         conf += "  RewriteCond %{{HTTP_HOST}} www.{0}\n".format(
+            cfg['external_name'])
+         conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['plain_url'])
+   else:
+      conf += "  RewriteCond %{{HTTP_HOST}} www.{0}\n".format(
+         cfg['external_name'])
+      conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['ssl_url'])
+
+   conf += "</VirtualHost>\n"
+
+   return conf
+
+def setup_apache():
+   conf = ""
+
+   cfg['www_dir'] = "/var/www/{0}".format(siteid)
+   if not os.path.exists(cfg['www_dir']):
+      print("sudo ln -sf {0} {1}".format(cfg['webdir'], cfg['www_dir']))
+   if not os.path.exists(cfg['auxdir']):
+      print("sudo sh -c 'mkdir -pm2775 {0}; chown www-data.www-data {0}'"
+            .format(cfg['auxdir']))
+   if cfg['plain_port']:
+      conf += make_virtual_host(False, cfg['plain_port'])
+
+   with open("TMP.conf", "w") as outf:
+      outf.write(conf)
+
+   av_name = "/etc/apache2/sites-available/{0}.conf".format(siteid)
+   en_name = "/etc/apache2/sites-enabled/{0}.conf".format(siteid)
+
+   old = slurp_file(av_name)
+   if old != conf:
+      print("sudo sh -c 'cp TMP.conf {0}; apache2ctl graceful'".format(
+         av_name))
+
+   if not os.path.exists(en_name):
+      print("sudo a2ensite {0}".format(siteid))
+
+
+cfg = read_json("cfg.json")
+options = read_json("options.json")
+
+nat_info = re.split("\s+", slurp_file ("/etc/apache2/NAT_INFO"))
+if len(nat_info) >= 2:
+   nat_name = nat_info[0]
+   port_base = int(nat_info[1])
+else:
+   nat_name = "localhost"
+   port_base = 8000
+
+cfg['srcdir'] = os.getcwd()
+cfg['webdir'] = "{0}/public".format(cfg['srcdir'])
+siteid = "{0}-{1}".format(cfg['site_name'], cfg['conf_key'])
+cfg['siteid'] = siteid
+cfg['auxdir'] = "/var/{0}".format(cfg['siteid'])
+
+server_name = socket.gethostname()
+try:
+   cfg['external_name'] = options[server_name][siteid]['external_name']
+   cfg['plain_port'] = 80
+   cfg['ssl_port'] = 443
+except(KeyError):
+   cfg['external_name'] = nat_name
+
+if 'plain_port' not in cfg:
+   cfg['plain_port'] = get_free_port(port_base)
+
+cfg['plain_url'] = make_url("http", cfg['external_name'], cfg['plain_port'])
+cfg['main_url'] = cfg['plain_url']
+cfg['ssl_port'] = 0
+cfg['ssl_url'] = ""
+
+if options['db'] == "postgres":
+   setup_postgres()
+   
+setup_apache()
+
+print(cfg['plain_url'])
+
+# cfg.pop('options', None)
+write_json("cfg.json", cfg)
+
+
+

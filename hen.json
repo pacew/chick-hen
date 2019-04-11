@@ -1,0 +1,22 @@
+[
+  {
+    "node": 70,
+    "mac": "86:19:83:00:00:01",
+    "data_interval_secs": 5,
+    "xmit_interval_secs": 10,
+    "channels": [
+      {
+	"name": "temperature",
+	"hw_port": 5,
+	"hw_bits": 10,
+	"hw_rshift": 0
+      },
+      {
+	"name": "sunny_flag",
+	"hw_port": 7,
+	"hw_bits": 1,
+	"hw_rshift": 3
+      }
+    ]
+  }
+]
