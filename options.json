@@ -1,8 +1,8 @@
 {
-  "db": "postgres",
-  
+  "db": "sqlite3",
   "l1.pacew.org": {
-    "hen-pace": {
+    "db": "postgres",
+    "hen-production": {
       "external_name": "hen.pacew.org"
     }
   }

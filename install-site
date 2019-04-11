@@ -6,33 +6,12 @@ import re
 import os
 import socket
 import random
+import getpass
 
-def read_json(name):
-   try:
-      with open(name) as f:
-         val = json.load (f)
-   except(OSError, ValueError):
-      print ("Can't parse", name)
-      sys.exit(1)
-   return val
+import psite
 
-def write_json(name, val):
-   with open("TMP.json", "w") as f:
-      f.write(json.dumps(val, sort_keys=True, indent=2))
-      f.write("\n")
-   os.rename("TMP.json", name)
-      
-def slurp_file(name):
-   try:
-      with open(name) as f:
-         val = f.read()
-   except(OSError):
-      val = ""
-   return val
-
-def setup_postgres():
-   cfg['dbinst'] = "local"
-
+def setup_db():
+   cfg['db'] = get_option("db", "")
 
 def get_free_port(port_base):
    return random.randrange(port_base, port_base + 1000)
@@ -104,7 +83,7 @@ def setup_apache():
    av_name = "/etc/apache2/sites-available/{0}.conf".format(siteid)
    en_name = "/etc/apache2/sites-enabled/{0}.conf".format(siteid)
 
-   old = slurp_file(av_name)
+   old = psite.slurp_file(av_name)
    if old != conf:
       print("sudo sh -c 'cp TMP.conf {0}; apache2ctl graceful'".format(
          av_name))
@@ -113,10 +92,45 @@ def setup_apache():
       print("sudo a2ensite {0}".format(siteid))
 
 
-cfg = read_json("cfg.json")
-options = read_json("options.json")
+cfg = psite.read_json("cfg.json", {})
 
-nat_info = re.split("\s+", slurp_file ("/etc/apache2/NAT_INFO"))
+if not 'site_name' in cfg:
+   if len(sys.argv) < 2:
+      print("must specify site_name for install call to install-site")
+      print("usage: install-site [site_name [conf_key]]")
+      sys.exit(1)
+   else:
+      cfg['site_name'] = sys.argv[1]
+      if len(sys.argv) < 3:
+         cfg['conf_key'] = getpass.getuser()
+      else:
+         cfg['conf_key'] = sys.argv[2]
+
+siteid = "{0}-{1}".format(cfg['site_name'], cfg['conf_key'])
+cfg['siteid'] = siteid
+
+server_name = socket.gethostname()
+
+options = psite.read_json("options.json")
+options_server = options.get(server_name, {})
+options_site = options_server.get(siteid, {})
+
+def get_option(name, default=None):
+   if name in options_site:
+      return options_site[name]
+   elif name in options_server:
+      return options_server[name]
+   elif name in options:
+      return options[name]
+   else:
+      return default
+
+cfg['srcdir'] = os.getcwd()
+cfg['webdir'] = "{0}/public".format(cfg['srcdir'])
+cfg['auxdir'] = "/var/{0}".format(cfg['siteid'])
+
+
+nat_info = re.split("\s+", psite.slurp_file ("/etc/apache2/NAT_INFO"))
 if len(nat_info) >= 2:
    nat_name = nat_info[0]
    port_base = int(nat_info[1])
@@ -124,37 +138,28 @@ else:
    nat_name = "localhost"
    port_base = 8000
 
-cfg['srcdir'] = os.getcwd()
-cfg['webdir'] = "{0}/public".format(cfg['srcdir'])
-siteid = "{0}-{1}".format(cfg['site_name'], cfg['conf_key'])
-cfg['siteid'] = siteid
-cfg['auxdir'] = "/var/{0}".format(cfg['siteid'])
-
-server_name = socket.gethostname()
-try:
-   cfg['external_name'] = options[server_name][siteid]['external_name']
+val = get_option("external_name")
+if val == None:
+   cfg['external_name'] = nat_name
+   if 'plain_port' not in cfg:
+      cfg['plain_port'] = get_free_port(port_base)
+else:
+   cfg['external_name'] = val
    cfg['plain_port'] = 80
    cfg['ssl_port'] = 443
-except(KeyError):
-   cfg['external_name'] = nat_name
 
-if 'plain_port' not in cfg:
-   cfg['plain_port'] = get_free_port(port_base)
 
 cfg['plain_url'] = make_url("http", cfg['external_name'], cfg['plain_port'])
 cfg['main_url'] = cfg['plain_url']
 cfg['ssl_port'] = 0
 cfg['ssl_url'] = ""
 
-if options['db'] == "postgres":
-   setup_postgres()
-   
+setup_db()
 setup_apache()
 
 print(cfg['plain_url'])
 
-# cfg.pop('options', None)
-write_json("cfg.json", cfg)
+psite.write_json("cfg.json", cfg)
 
 
 
