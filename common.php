@@ -337,7 +337,7 @@ function pstart () {
     $body = "";
 
     global $username;
-    $username = getsess ("username2");
+    $username = getsess ("username");
     if (! @$anon_ok && $username == "") {
         redirect ("login.php");
     }
