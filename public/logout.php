@@ -8,5 +8,3 @@ pstart ();
 clrsess();
 
 redirect ("/");
-
-    
