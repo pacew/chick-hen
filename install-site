@@ -17,25 +17,45 @@ def get_free_port(port_base):
    return random.randrange(port_base, port_base + 1000)
 
 def make_url(scheme, host, port):
-   url = "{0}://{1}".format(scheme, host)
+   url = "{}://{}".format(scheme, host)
    if port != 80 and port != 443:
-      url += ":{0}".format(port)
+      url += ":{}".format(port)
    url += "/"
    return url
+
+def find_certs():
+   cfg.pop("crt_file", None)
+   cfg.pop("key_file", None)
+   cfg.pop("chain_file", None)
+
+   if (re.match(".*.pacew.org$", cfg['external_name']) 
+       and os.path.exists("/etc/apache2/wildcard.pacew.org.crt")):
+      cfg['crt_file'] = "/etc/apache2/wildcard.pacew.org.crt"
+      cfg['key_file'] = "/etc/apache2/wildcard.pacew.org.key"
+      cfg['chain_file'] = "/etc/apache2/wildcard.pacew.org.chain.pem"
+      return
+
+   return
 
 def make_virtual_host(ssl_flag, port):
    conf = ""
 
    if port != 80 and port != 443:
-      conf += "Listen {0}\n".format(port)
+      conf += "Listen {}\n".format(port)
 
-   conf += "<VirtualHost *:{0}>\n".format(port)
-   conf += "  ServerName {0}\n".format(cfg['external_name'])
-   conf += "  ServerAlias www.{0}\n".format(cfg['external_name'])
+   conf += "<VirtualHost *:{}>\n".format(port)
+   conf += "  ServerName {}\n".format(cfg['external_name'])
+   conf += "  ServerAlias www.{}\n".format(cfg['external_name'])
+   if ssl_flag:
+      conf += "  SSLEngine on\n";
+      conf += "  SSLCertificateFile {}\n".format(cfg['crt_file'])
+      conf += "  SSLCertificateKeyFile {}\n".format(cfg['key_file'])
+      if 'chain_file' in cfg:
+         conf += "  SSLCertificateChainFile {}\n".format(cfg['chain_file'])
    conf += "  php_flag display_errors on\n"
-   conf += "  DocumentRoot {0}\n".format(cfg['www_dir'])
-   conf += "  SetEnv APP_ROOT {0}\n".format(cfg['srcdir'])
-   conf += "  <Directory {0}>\n".format(cfg['www_dir'])
+   conf += "  DocumentRoot {}\n".format(cfg['www_dir'])
+   conf += "  SetEnv APP_ROOT {}\n".format(cfg['srcdir'])
+   conf += "  <Directory {}>\n".format(cfg['www_dir'])
    conf += "    <IfModule valhtml_module>\n"
    conf += "      AddOutputFilterByType VALHTML text/html\n"
    conf += "      SetEnv no-gzip 1\n"
@@ -49,17 +69,17 @@ def make_virtual_host(ssl_flag, port):
    conf += "  RewriteEngine on\n"
    conf += "  RewriteCond %{REQUEST_URI} /.well-known/.*\n"
    conf += "  RewriteRule ^(.*) /var/www/html/$1 [L]\n"
-   if not ssl_flag:
-      if cfg['ssl_url'] != "":
-         conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['ssl_url'])
-      else:
-         conf += "  RewriteCond %{{HTTP_HOST}} www.{0}\n".format(
-            cfg['external_name'])
-         conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['plain_url'])
-   else:
-      conf += "  RewriteCond %{{HTTP_HOST}} www.{0}\n".format(
+   if ssl_flag:
+      conf += "  RewriteCond %{{HTTP_HOST}} www.{}\n".format(
          cfg['external_name'])
-      conf += "  RewriteRule ^/(.*) {0}$1 [R]\n".format(cfg['ssl_url'])
+      conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['ssl_url'])
+   else:
+      if cfg['ssl_url'] == "":
+         conf += "  RewriteCond %{{HTTP_HOST}} www.{}\n".format(
+            cfg['external_name'])
+         conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['plain_url'])
+      else:
+         conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['ssl_url'])
 
    conf += "</VirtualHost>\n"
 
@@ -68,28 +88,31 @@ def make_virtual_host(ssl_flag, port):
 def setup_apache():
    conf = ""
 
-   cfg['www_dir'] = "/var/www/{0}".format(siteid)
+   cfg['www_dir'] = "/var/www/{}".format(siteid)
    if not os.path.exists(cfg['www_dir']):
-      print("sudo ln -sf {0} {1}".format(cfg['public_dir'], cfg['www_dir']))
+      print("sudo ln -sf {} {}".format(cfg['public_dir'], cfg['www_dir']))
    if not os.path.exists(cfg['auxdir']):
-      print("sudo sh -c 'mkdir -pm2775 {0}; chown www-data.www-data {0}'"
+      print("sudo sh -c 'mkdir -pm2775 {}; chown www-data.www-data {}'"
             .format(cfg['auxdir']))
    if cfg['plain_port']:
       conf += make_virtual_host(False, cfg['plain_port'])
 
+   if cfg['ssl_port']:
+      conf += make_virtual_host(True, cfg['ssl_port'])
+
    with open("TMP.conf", "w") as outf:
       outf.write(conf)
 
-   av_name = "/etc/apache2/sites-available/{0}.conf".format(siteid)
-   en_name = "/etc/apache2/sites-enabled/{0}.conf".format(siteid)
+   av_name = "/etc/apache2/sites-available/{}.conf".format(siteid)
+   en_name = "/etc/apache2/sites-enabled/{}.conf".format(siteid)
 
    old = psite.slurp_file(av_name)
    if old != conf:
-      print("sudo sh -c 'cp TMP.conf {0}; apache2ctl graceful'".format(
+      print("sudo sh -c 'cp TMP.conf {}; apache2ctl graceful'".format(
          av_name))
 
    if not os.path.exists(en_name):
-      print("sudo a2ensite {0}".format(siteid))
+      print("sudo a2ensite {}".format(siteid))
 
 
 cfg = psite.read_json("cfg.json", {})
@@ -106,7 +129,7 @@ if not 'site_name' in cfg:
       else:
          cfg['conf_key'] = sys.argv[2]
 
-siteid = "{0}-{1}".format(cfg['site_name'], cfg['conf_key'])
+siteid = "{}-{}".format(cfg['site_name'], cfg['conf_key'])
 cfg['siteid'] = siteid
 
 server_name = socket.gethostname()
@@ -126,8 +149,8 @@ def get_option(name, default=None):
       return default
 
 cfg['srcdir'] = os.getcwd()
-cfg['public_dir'] = "{0}/public".format(cfg['srcdir'])
-cfg['auxdir'] = "/var/{0}".format(cfg['siteid'])
+cfg['public_dir'] = "{}/public".format(cfg['srcdir'])
+cfg['auxdir'] = "/var/{}".format(cfg['siteid'])
 
 
 nat_info = re.split("\s+", psite.slurp_file ("/etc/apache2/NAT_INFO"))
@@ -151,13 +174,22 @@ else:
 
 cfg['plain_url'] = make_url("http", cfg['external_name'], cfg['plain_port'])
 cfg['main_url'] = cfg['plain_url']
-cfg['ssl_port'] = 0
-cfg['ssl_url'] = ""
+
+find_certs()
+if 'crt_file' in cfg:
+   if cfg.get("ssl_port", 0) == 0:
+      cfg['ssl_port'] = get_free_port(port_base)
+   cfg['ssl_url'] = make_url("https", cfg['external_name'], cfg['ssl_port'])
+else:
+   cfg['ssl_port'] = 0
+   cfg['ssl_url'] = ""
 
 setup_db()
 setup_apache()
 
 print(cfg['plain_url'])
+if cfg.get('ssl_url', None) != None:
+   print(cfg['ssl_url'])
 
 psite.write_json("cfg.json", cfg)
 
