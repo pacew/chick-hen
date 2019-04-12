@@ -1,0 +1,36 @@
+#! /usr/bin/env python3
+
+import sys
+import re
+import crypt
+import getpass
+
+import psite
+
+
+if len(sys.argv) != 2:
+   print("usage: mkuser email")
+   sys.exit(1)
+
+email = sys.argv[1]
+
+psite.query("select user_id from users where email = ?", (email,))
+result = psite.fetch()
+if result == None:
+   user_id = psite.get_seq()
+   psite.query("insert into users (user_id, email) values (?,?)",
+               (user_id, email))
+else:
+   user_id = result[0]
+
+print("user_id", user_id)
+
+pw = getpass.getpass()
+
+cpw = crypt.crypt(pw)
+
+psite.query("update users set passwd = ? where user_id = ?",
+            (cpw, user_id))
+psite.commit()
+
+

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import sqlite3
+import re
 
 # apt-get install python3-psycopg2
 import psycopg2
@@ -54,9 +55,9 @@ def get_db():
    if db is not None:
       return db
 
-   db = {}
-   
    cfg = get_cfg()
+   db = dict(db=cfg["db"])
+
    if cfg["db"] == "sqlite3":
       filename = "{0}.db".format(cfg['site_name'])
       db['conn'] = sqlite3.connect(filename)
@@ -86,6 +87,8 @@ def make_column(table, column, coltype):
 
 def query(stmt, args=None):
    db = get_db()
+   if db["db"] == "postgres":
+      stmt = re.sub("[?]", "%s", stmt)
    return (db['cursor'].execute(stmt, args))
 
 def fetch():
@@ -167,4 +170,16 @@ def postgres_make_column(table, column, typename):
 def postgres_commit():
    query("commit")
 
+def get_seq():
+   query("select lastval from seq")
+   result = fetch()
+   if result == None:
+      curval = 100
+      query("insert into seq (lastval) values (?)", (curval,))
+      commit()
+   else:
+      curval = result[0] + 1
+      query("update seq set lastval = ?", (curval,))
+      commit()
+   return curval
 
