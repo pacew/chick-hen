@@ -92,7 +92,7 @@ def setup_apache():
    if not os.path.exists(cfg['www_dir']):
       print("sudo ln -sf {} {}".format(cfg['public_dir'], cfg['www_dir']))
    if not os.path.exists(cfg['auxdir']):
-      print("sudo sh -c 'mkdir -pm2775 {}; chown www-data.www-data {}'"
+      print("sudo sh -c 'mkdir -pm2775 {0}; chown www-data.www-data {0}'"
             .format(cfg['auxdir']))
    if cfg['plain_port']:
       conf += make_virtual_host(False, cfg['plain_port'])

@@ -21,8 +21,8 @@ function make_db_connection ($db, $dbparams, $create) {
             if ($options['db'] == "postgres") {
                 $default_dbparams['dbtype'] = "pgsql";
                 if ($cfg['conf_key'] == "aws") {
-                    $lsconf=json_decode(file_get_contents("/etc/lsconf-dbinfo"), 
-                                        TRUE);
+                    $lsconf=json_decode(file_get_contents(
+                        "/etc/lsconf-dbinfo"), TRUE);
                     $default_dbparams['host'] = $lsconf['host'];
                     $default_dbparams['user'] = $lsconf['user'];
                     $default_dbparams['password'] = $lsconf['password'];
@@ -346,7 +346,7 @@ function pstart () {
 function pfinish () {
     $pg = "";
 
-    $pg .= "<!doctype html>\n"
+    $pg .= "<!DOCTYPE html>\n"
         ."<html lang='en'>\n"
         ."<head>\n"
         ."<meta charset='utf-8'>\n"
@@ -382,22 +382,21 @@ function pfinish () {
     $pg .= "<span class='nav'>\n";
     global $username;
     if (@$username == "") {
-        $pg .= "<a class='login_anchor' target='_blank' href='login.php'>[ admin login ]</a>";
+        $pg .= "<a class='login_anchor' href='login.php'>[ admin login ]</a>";
     } else {
         $pg .= "[ ";
-        $pg .= "<a href='admin.php'>applications</a>";
-        $pg .= " | ";
         $pg .= "<a href='logout.php'>logout</a>";
         $pg .= " ]";
     }
-    $pg .= "</span>\n";
-    $pg .= "</div>\n";
+    $pg .= "</span>\n"; /* nav */
+    $pg .= "</div>\n"; /* login link */
     $pg .= "<div style='clear:both'></div>\n";
+    $pg .= "<div>\n";
+    $pg .= mklink ("coops", "coops.php");
     $pg .= "</div>\n";
+    $pg .= "</div>\n"; /* banner */
 
     $pg .= "<div class='content'>\n";
-
-    $pg .= "<h1 class='banner_title'>title</h1>\n";
 
     echo ($pg);
     $pg = "";
@@ -405,7 +404,7 @@ function pfinish () {
     global $body;
     $pg .= $body;
 
-    $pg .= "</div>\n";
+    $pg .= "</div>\n"; /* content */
 
     $pg .= sprintf ("<script src='scripts.js?c=%s.js'></script>\n",
                     get_cache_defeater ());
