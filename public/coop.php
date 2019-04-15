@@ -98,10 +98,14 @@ while (($r = fetch ($q)) != NULL) {
         $hen_name = "_";
     $cols[] = mklink ($hen_name, $t);
 
+    $text = "";
     $t = sprintf ("hen.php?coop_id=%d&hen_id=%d&edit=1", 
         $arg_coop_id, $r->hen_id);
-    $cols[] = mklink ("[edit]", $t);
-    
+    $text .= mklink ("[edit]", $t);
+
+    $cols[] = $text;
+
+
     $rows[] = $cols;
 }
 

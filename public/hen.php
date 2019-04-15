@@ -13,16 +13,27 @@ $arg_hen_id = intval(@$_REQUEST['hen_id']);
 $arg_hen_name = trim(@$_REQUEST['hen_name']);
 
 $db_hen_name = "";
+$db_key_text = "";
+$db_key = "";
 
 if ($arg_hen_id) {
-    $q = query ("select coop_id, hen_name"
+    $q = query ("select coop_id, hen_name, key_text, key"
         ." from hens"
         ." where hen_id = ?",
         $arg_hen_id);
     if (($r = fetch ($q)) != NULL) {
         $coop_id = intval ($r->coop_id);
         $db_hen_name = trim ($r->hen_name);
+        $db_key_text = trim ($r->key_text);
+        $db_key = trim ($r->key);
     }
+}
+
+if ($coop_id) {
+    $body .= "<div>\n";
+    $t = sprintf ("coop.php?coop_id=%d", $coop_id);
+    $body .= mklink ("back to coop", $t);
+    $body .= "</div>\n";
 }
 
 if ($arg_edit == 1) {
@@ -84,6 +95,24 @@ if ($arg_delete == 2) {
     $t = sprintf ("coop.php?coop_id=%d", $coop_id);
     redirect ($t);
 }
+
+$body .= "<table class='twocol'>\n";
+$body .= "<tr><th>Name</th><td>";
+$body .= h($db_hen_name);
+$body .= "</td></tr>\n";
+$body .= "<tr><th>Key (text)</th><td>";
+$body .= h($db_key_text);
+$body .= "</td></tr>\n";
+$body .= "<tr><th>Key (hex)</th><td>";
+$body .= h($db_key);
+$body .= "</td></tr>\n";
+
+$body .= "<tr><th></th><td>";
+$t = sprintf ("setkey.php?hen_id=%d&edit=1", $arg_hen_id);
+$body .= mklink ("change key", $t);
+$body .= "</td></tr>\n";
+
+$body .= "</table>\n";
 
 pfinish();
     
