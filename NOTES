@@ -9,9 +9,10 @@ must be preconfigured with the hen key.  can compute SHA256 and
 HMAC-SHA256
 
 hen is medium lightweight - raspberry pi scale.  has tcp, local
-storage, and python.  continuous power but internet connectivity may be
-intermittent.  interacts with coop via REST requests (config and data
-storage). identifies itself to the coop with the hen key
+storage for files, sqlite3, and python.  continuous power but internet
+connectivity may be intermittent.  interacts with coop via REST
+requests (config and data storage). identifies itself to the coop with
+the hen key
 
 coop is a server on the public internet - full linux
 
