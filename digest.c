@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <memory.h>
+/* apt-get install libssl-dev */
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 

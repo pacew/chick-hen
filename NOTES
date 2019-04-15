@@ -1,5 +1,28 @@
 local oui for pace 0x86 0x19 0x83
 
+http://docs.python-requests.org/en/master/
+apt-get install python3-requests (may be installed by default)
+
+chick is super lightweight - arduino scale, no tcp, deep sleep most of
+the time.  chick is initially identified using its mac address. chick
+must be preconfigured with the hen key.  can compute SHA256 and
+HMAC-SHA256
+
+hen is medium lightweight - raspberry pi scale.  has tcp, local
+storage, and python.  continuous power but internet connectivity may be
+intermittent.  interacts with coop via REST requests (config and data
+storage). identifies itself to the coop with the hen key
+
+coop is a server on the public internet - full linux
+
+
+instead of giving chicks nodenums (and opening the possibility of
+duplicates), we compute the message signature from the data
+concatenated with the mac.  we also prepend a one byte hash of the mac
+to help the hen pick the right mac(s) to check
+
+
+
 
 https://docs.python.org/3/library/hashlib.html
 

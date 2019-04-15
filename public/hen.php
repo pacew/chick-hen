@@ -114,5 +114,12 @@ $body .= "</td></tr>\n";
 
 $body .= "</table>\n";
 
+$t = sprintf ("api.php?hen_id=%d", $arg_hen_id);
+$t = make_absolute ($t);
+$body .= sprintf ("<input type='text' readonly='readonly'"
+    ." size='50' value='%s' />\n",
+    h($t));
+$body .= mklink ("[link]", $t);
+
 pfinish();
     
