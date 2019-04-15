@@ -69,17 +69,20 @@ def make_virtual_host(ssl_flag, port):
    conf += "  RewriteEngine on\n"
    conf += "  RewriteCond %{REQUEST_URI} /.well-known/.*\n"
    conf += "  RewriteRule ^(.*) /var/www/html/$1 [L]\n"
-   if ssl_flag:
+   conf += "\n"
+
+   if cfg['ssl_port'] != 0 and not ssl_flag:
+      conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['main_url'])
+      conf += "\n"
+   else:
       conf += "  RewriteCond %{{HTTP_HOST}} www.{}\n".format(
          cfg['external_name'])
-      conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['ssl_url'])
-   else:
-      if cfg['ssl_url'] == "":
-         conf += "  RewriteCond %{{HTTP_HOST}} www.{}\n".format(
-            cfg['external_name'])
-         conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['plain_url'])
-      else:
-         conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['ssl_url'])
+      conf += "  RewriteRule ^/(.*) {}$1 [R]\n".format(cfg['main_url'])
+      conf += "\n"
+   
+      conf += "  RewriteCond {}%{{REQUEST_FILENAME}} !-f\n".format(
+         cfg['www_dir'])
+      conf += "  RewriteRule .* {}/index.php\n".format(cfg['srcdir'])
 
    conf += "</VirtualHost>\n"
 
@@ -88,9 +91,15 @@ def make_virtual_host(ssl_flag, port):
 def setup_apache():
    conf = ""
 
+   conf += "<Directory {}>\n".format(cfg['srcdir'])
+   conf += "  Options Indexes FollowSymLinks Includes ExecCGI\n"
+   conf += "  Require all granted\n"
+   conf += "  Allow from all\n"
+   conf += "</Directory>\n"
+
    cfg['www_dir'] = "/var/www/{}".format(siteid)
    if not os.path.exists(cfg['www_dir']):
-      print("sudo ln -sf {} {}".format(cfg['public_dir'], cfg['www_dir']))
+      print("sudo ln -sf {} {}".format(cfg['static_dir'], cfg['www_dir']))
    if not os.path.exists(cfg['auxdir']):
       print("sudo sh -c 'mkdir -pm2775 {0}; chown www-data.www-data {0}'"
             .format(cfg['auxdir']))
@@ -149,7 +158,7 @@ def get_option(name, default=None):
       return default
 
 cfg['srcdir'] = os.getcwd()
-cfg['public_dir'] = "{}/public".format(cfg['srcdir'])
+cfg['static_dir'] = "{}/static".format(cfg['srcdir'])
 cfg['auxdir'] = "/var/{}".format(cfg['siteid'])
 
 
@@ -180,6 +189,7 @@ if 'crt_file' in cfg:
    if cfg.get("ssl_port", 0) == 0:
       cfg['ssl_port'] = get_free_port(port_base)
    cfg['ssl_url'] = make_url("https", cfg['external_name'], cfg['ssl_port'])
+   cfg['main_url'] = cfg['ssl_url']
 else:
    cfg['ssl_port'] = 0
    cfg['ssl_url'] = ""

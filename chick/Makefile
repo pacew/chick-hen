@@ -1,11 +1,7 @@
 CFLAGS = -g -Wall
 LIBS = -lcrypto -lm
 
-all: hen chick
-
-HEN_OBJS = hen.o wire.o multicast.o proto-common.o proto-gen.o digest.o
-hen: $(HEN_OBJS)
-	$(CC) $(CFLAGS) -o hen $(HEN_OBJS) $(LIBS)
+all: chick
 
 CHICK_OBJS = chick.o wire.o multicast.o proto-common.o proto-gen.o digest.o
 chick: $(CHICK_OBJS)
@@ -13,13 +9,13 @@ chick: $(CHICK_OBJS)
 
 $(CHICK_OBJS) $(HEN_OBJS): proto-common.h proto-gen.h
 
-proto-gen.h proto-gen.c proto-gen.json: genproto chick-hen.proto
-	./genproto
+proto-gen.h proto-gen.c proto-gen.json: ../hen/genproto ../hen/chick-hen.proto
+	../hen/genproto ../hen/chick-hen.proto
 
 clean:
 	rm -f hen chick
 	rm -f *.o *~
-	rm proto-gen.[ch] proto-gen.json
+	rm -f proto-gen.[ch] proto-gen.json
 
 test:
 	python3 -m unittest proto.py

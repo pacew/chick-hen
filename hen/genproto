@@ -7,11 +7,17 @@ import hashlib
 import re
 import pprint
 
+if len(sys.argv) < 2:
+   print("usage: genproto file")
+   sys.exit(1)
+
+filename = sys.argv[1]
+
 proto = {}
 proto['pkts'] = {}
 ops_used = set()
 max_op = 0
-with open("chick-hen.proto", "r") as file:
+with open(filename, "r") as file:
    pktname = None
    for line in file:
       line = re.sub(re.compile("#.*" ) ,"" , line).strip()
