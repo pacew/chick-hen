@@ -4,8 +4,6 @@ require_once ($_SERVER['APP_ROOT'] . "/app.php");
 
 pstart ();
 
-$body .= "<h1>coop</h1>\n";
-
 $arg_edit = intval(@$_REQUEST['edit']);
 $arg_delete = intval(@$_REQUEST['delete']);
 $arg_coop_id = intval(@$_REQUEST['coop_id']);
@@ -22,6 +20,11 @@ if ($arg_coop_id) {
         $db_coop_name = $r->coop_name;
     }
 }
+
+if($db_coop_name) {
+    $body .= sprintf ("<h1>coop %s</h1>\n", h($db_coop_name));
+}
+
 
 if ($arg_edit == 1) {
     $body .= "<form action='coop.php'>\n";
@@ -72,6 +75,37 @@ if ($arg_delete == 2) {
     query ("delete from coops where coop_id = ?", $arg_coop_id);
     redirect ("coops.php");
 }
+
+if ($arg_coop_id == 0)
+    pfinish ();
+
+$body .= "<div>\n";
+$t = sprintf ("hen.php?coop_id=%d&edit=1", $arg_coop_id);
+$body .= mklink ("add hen", $t);
+$body .= "</div>\n";
+
+$q = query ("select hen_id, hen_name"
+    ." from hens"
+    ." where coop_id = ?"
+    ." order by hen_name",
+    $arg_coop_id);
+$rows = array ();
+while (($r = fetch ($q)) != NULL) {
+    $cols = array ();
+    $t = sprintf ("hen.php?coop_id=%d&hen_id=%d", $arg_coop_id, $r->hen_id);
+    $hen_name = trim ($r->hen_name);
+    if ($hen_name == "")
+        $hen_name = "_";
+    $cols[] = mklink ($hen_name, $t);
+
+    $t = sprintf ("hen.php?coop_id=%d&hen_id=%d&edit=1", 
+        $arg_coop_id, $r->hen_id);
+    $cols[] = mklink ("[edit]", $t);
+    
+    $rows[] = $cols;
+}
+
+$body .= mktable (array ("name", "op"), $rows);
 
 pfinish();
     
