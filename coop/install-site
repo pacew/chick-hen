@@ -8,6 +8,7 @@ import socket
 import random
 import getpass
 
+sys.path.insert(0, "..")
 import psite
 
 def setup_db():

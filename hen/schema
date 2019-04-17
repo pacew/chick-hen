@@ -1,0 +1,13 @@
+table seq
+col lastval integer
+
+table sessions
+col session_id varchar
+col session varchar
+col updated timestamp
+
+table users
+col user_id integer
+col email varchar
+col passwd varchar
+

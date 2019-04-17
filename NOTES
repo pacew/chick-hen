@@ -1,3 +1,6 @@
+https://www.python.org/dev/peps/pep-0328/
+apt-get install php-sqlite3
+
 local oui for pace 0x86 0x19 0x83
 
 http://docs.python-requests.org/en/master/
@@ -9,10 +12,10 @@ must be preconfigured with the hen key.  can compute SHA256 and
 HMAC-SHA256
 
 hen is medium lightweight - raspberry pi scale.  has tcp, local
-storage for files, sqlite3, and python.  continuous power but internet
-connectivity may be intermittent.  interacts with coop via REST
-requests (config and data storage). identifies itself to the coop with
-the hen key
+storage for files, sqlite3, apache with php, and python.  continuous
+power but internet connectivity may be intermittent.  interacts with
+coop via REST requests (config and data storage). identifies itself to
+the coop with the hen key
 
 coop is a server on the public internet - full linux
 

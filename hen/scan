@@ -9,12 +9,15 @@ import requests
 
 import proto
 
+sys.path.insert(0, "..")
+import psite
+
 # http://docs.python-requests.org/en/master/user/quickstart/
-params={"hen_id": 107}
-r = requests.get ("https://k.pacew.org:8646/api.php", params=params)
-ret = r.json()
-print(ret)
-sys.exit(0);
+#params={"hen_id": 107}
+#r = requests.get ("https://k.pacew.org:8646/api.php", params=params)
+#ret = r.json()
+#print(ret)
+#sys.exit(0);
 
 
 vflag = False
