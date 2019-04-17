@@ -3,7 +3,7 @@ LIBS = -lcrypto -lm
 
 all: chick
 
-CHICK_OBJS = chick.o wire.o multicast.o proto-common.o proto-gen.o digest.o
+CHICK_OBJS = chick.o multicast.o proto-common.o proto-gen.o digest.o
 chick: $(CHICK_OBJS)
 	$(CC) $(CFLAGS) -o chick $(CHICK_OBJS) $(LIBS)
 

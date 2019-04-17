@@ -19,7 +19,7 @@ digest_init (void)
 	if (digest_ready)
 		return;
 
-	if ((f = fopen (".system_key", "r")) == NULL) {
+	if ((f = fopen ("../hen/.system_key", "r")) == NULL) {
 		fprintf (stderr, "can't open .system_key\n");
 		exit (1);
 	}
@@ -40,18 +40,30 @@ digest_init (void)
 void
 compute_digest (struct proto_digest *dp, void *buf, int len)
 {
+	HMAC_CTX *ctx;
 	unsigned char full_digest[EVP_MAX_MD_SIZE];
 	
+	ctx = HMAC_CTX_new();
+
 	digest_init ();
 
-	HMAC(EVP_sha256(), 
-	     system_key, sizeof system_key,
-	     buf, len,
-	     full_digest, NULL);
+	HMAC_Init_ex(ctx,
+		     system_key, sizeof system_key,
+		     EVP_sha256(), NULL);
+	
+	HMAC_Update (ctx, buf, len);
+
+	HMAC_Final(ctx, full_digest, NULL);
 
 	memcpy (dp->digest, full_digest, sizeof dp->digest);
+
+	HMAC_CTX_free(ctx);
 }
 
+/*
+ * hash key using my mac address as the key. divide the first byte
+ * by the divisor and return true of the remainder matches
+ */
 int
 scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder)
 {

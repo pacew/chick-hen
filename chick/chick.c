@@ -17,7 +17,7 @@ double listen_until_ts;
 double next_data_ts;
 
 struct nvram {
-	uint8_t my_nodenum;
+	uint8_t foo;
 	uint32_t sig;
 } __attribute__((packed));
 
@@ -98,8 +98,6 @@ nvram_save (void)
 int sock;
 struct sockaddr_in hen_addr;
 
-int hen_nodenum = 98;
-int my_nodenum = 70;
 int last_rcv_strength;
 uint32_t series_number;
 
@@ -260,12 +258,8 @@ void
 maybe_xmit (void)
 {
 	int thistime;
-	struct dpoint *first, *dp;
 	unsigned char pkt[1000];
-	int off;
-	uint32_t hmac;
 	int size;
-	struct wirebuf wb;
 	
 	/* TODO: take into account generated jitter */
 	if (get_secs () - last_xmit_ts < XMIT_INTERVAL_SECS)
@@ -274,36 +268,11 @@ maybe_xmit (void)
 	if ((thistime = dpoint_avail ()) == 0)
 		return;
 	
-	/* keep packet size under 50 bytes */
-
-	if (thistime > MAX_XMIT_DPOINTS)
-		thistime = MAX_XMIT_DPOINTS;
-
-	first = peek_dpoint (0);
-
-	init_wirebuf (&wb, pkt, sizeof pkt);
-	put8 (&wb, hen_nodenum);
-	put8 (&wb, my_nodenum);
-	put8 (&wb, last_rcv_strength);
-	put24 (&wb, first->seq);
-
-	for (off = 0; off < thistime; off++) {
-		if ((dp = peek_dpoint (off)) == NULL)
-			break;
-		put_double (&wb, dp->ts);
-		put_double (&wb, dp->val);
+	if (0) {
+		dump (pkt, size);
+		sendto (sock, pkt, size, 0,
+			(struct sockaddr *)&hen_addr, sizeof hen_addr);
 	}
-	
-	hmac = series_number;
-	
-	put32 (&wb, hmac);
-	
-	size = wb.used;
-	
-	printf ("xmit %d x%d\n", first->seq, thistime);
-	dump (pkt, size);
-	sendto (sock, pkt, size, 0,
-		(struct sockaddr *)&hen_addr, sizeof hen_addr);
 	last_xmit_ts = get_secs ();
 	
 	listen_until_ts = last_xmit_ts + LISTEN_INTERVAL_SECS;
@@ -345,7 +314,7 @@ main (int argc, char **argv)
 		my_mac_addr[3], my_mac_addr[4], my_mac_addr[5]);
 
 	nvram_startup ();
-	nvram.my_nodenum = 70;
+	nvram.foo = 123;
 	nvram_save ();
 
 	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
@@ -405,6 +374,8 @@ handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	struct proto_hdr xhdr;
 	struct proto_probe_response pr;
 	
+	printf ("probe\n");
+
 	proto_decode (pb, &proto_probe_desc, &probe);
 
 	if (probe.mac0 != my_mac_addr[0]
@@ -418,8 +389,6 @@ handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	}
 
 	proto_encode_init (&xpb, xbuf, sizeof xbuf);
-	xhdr.to_nodenum = rhdr->from_nodenum;
-	xhdr.from_nodenum = my_nodenum;
 	xhdr.op = OP_PROBE_RESPONSE;
 	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
 	proto_encode (&xpb, &proto_probe_response_desc, &pr);
@@ -440,12 +409,14 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	struct proto_hdr xhdr;
 	struct proto_probe_response pr;
 	
+	printf ("scan\n");
+
 	proto_decode (pb, &proto_scan_desc, &scan);
 
 	if (scan_digest (scan.key, scan.divisor, scan.remainder)) {
-		xhdr.to_nodenum = rhdr->from_nodenum;
-		xhdr.from_nodenum = my_nodenum;
+		xhdr.mac_hash = HEN_MAC_HASH;
 		xhdr.op = OP_PROBE_RESPONSE;
+		xhdr.to_hen = 1;
 		pr.mac0 = my_mac_addr[0];
 		pr.mac1 = my_mac_addr[1];
 		pr.mac2 = my_mac_addr[2];
@@ -482,12 +453,22 @@ rcv_soak (void)
 		if (vflag)
 			dump (rbuf, len);
 		proto_decode_init (&pb, rbuf, len);
-		printf ("sig_ok = %d\n", pb.sig_ok);
+		if (! pb.sig_ok) {
+			printf ("bad sig\n");
+			continue;
+		}
 
 		proto_decode (&pb, &proto_hdr_desc, &hdr);
 
-		if (hdr.to_nodenum != BROADCAST_NODENUM)
+		if (hdr.to_hen) {
+			printf ("ignore hen pkt\n");
 			continue;
+		}
+
+		if (hdr.mac_hash != BROADCAST_MAC_HASH) {
+			printf ("ignore non-broadcast\n");
+			continue;
+		}
 
 		switch (hdr.op) {
 		case OP_PROBE:

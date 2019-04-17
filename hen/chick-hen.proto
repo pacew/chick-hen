@@ -1,10 +1,13 @@
-pkt scan 71
+const BROADCAST_MAC_HASH 21
+const HEN_MAC_HASH 22
+
+pkt scan 1
 8 key
 8 divisor
 8 remainder
 8 jitter
 
-pkt probe 65
+pkt probe 2
 8 mac0
 8 mac1
 8 mac2
@@ -12,7 +15,7 @@ pkt probe 65
 8 mac4
 8 mac5
 
-pkt probe_response 70
+pkt probe_response 3
 8 mac0
 8 mac1
 8 mac2
@@ -23,24 +26,24 @@ pkt probe_response 70
 
 
 pkt hdr 0
-8 to_nodenum
-8 from_nodenum
-8 op
+8 mac_hash
+4 op
+1 to_hen
 
 pkt data 0
 8 last_strength
 24 seq
 # raw data follows
 
-pkt ack 66
+pkt ack 4
 8 last_strength
 24 ack
 
-pkt set_params 67
+pkt set_params 5
 14 record_interval_secs
 14 xmit_interval_secs
 
-pkt status 68
+pkt status 6
 8 last_strength
 24 series_number
 24 config_hash
@@ -48,7 +51,7 @@ pkt status 68
 32 acked_timestamp
 24 newest_seq
 
-pkt chan_config 69
+pkt chan_config 7
 6 idx
 6 nbits
 6 input_chan

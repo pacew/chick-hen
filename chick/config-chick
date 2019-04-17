@@ -7,8 +7,6 @@ import hashlib
 
 import proto
 
-MY_NODENUM = 98
-
 CHICK_HEN_MADDR = "224.0.0.130"
 CHICK_HEN_PORT = 32519
 
@@ -34,30 +32,15 @@ sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
 # sock.sendto ("hello".encode("utf-8"), (CHICK_HEN_MADDR, CHICK_HEN_PORT))
    
 try:
-   with open ("hen.json") as json_file:
-      cfg = json.load (json_file)
-except (OSError, ValueError):
-   print ("Can't parse hen.json")
-   sys.exit(1)
-
-try:
-   with open(".system_key", "r") as file:
+   with open("../hen/.system_key", "r") as file:
       system_key = bytes.fromhex(file.read().strip());
 except OSError:
    print ("bad .system_key")
    sys.exit(1)
 
-def get_config(num):
-   for node in cfg:
-      if (int(node["node"]) == num):
-         return node
-   return None
-
-if len(sys.argv) != 2:
-   print ("usage: config-check nodenum")
+if len(sys.argv) != 1:
+   print ("usage: config-chick")
    sys.exit(1)
-
-node = get_config (int(sys.argv[1]))
 
 def send_rcv(msg):
    for retry in range(0, 2):

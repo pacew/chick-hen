@@ -11,3 +11,6 @@ col user_id integer
 col email varchar
 col passwd varchar
 
+table chicks
+col chick_id integer
+col mac varchar

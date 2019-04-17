@@ -41,13 +41,6 @@ int scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder);
 uint32_t simple_digest (void *buf, int size);
 
 
-#define CHICK_HEN_VERS 1
 
-#define PKT_TO_NODENUM 0
-#define PKT_FROM_NODENUM 1
-#define PKT_OP 2
-#define PKT_PAYLOAD 3
-
-#define BROADCAST_NODENUM 99
 
 #endif /* _PROTO_H_ */
