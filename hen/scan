@@ -34,14 +34,19 @@ def scan_response(mac):
                 (mac,))
    r = psite.fetch()
    if r == None:
-      print("new node", mac)
+      print("new chick", mac)
 
       chick_id = psite.get_seq()
       psite.query("insert into chicks(chick_id,mac) values(?,?)",
                   (chick_id, mac))
-      psite.commit()
    else:
       print("dup chick", mac)
+      chick_id = r[0]
+
+   psite.query("update chicks set last_ts = datetime('now') where chick_id = ?",
+               (chick_id,))
+   psite.commit()
+
 
 def scan(key, divisor):
    for rem in range(0,divisor):

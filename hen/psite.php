@@ -72,7 +72,7 @@ function make_db_connection ($db, $dbparams, $create) {
                 printf ("%s does not exist", $name);
                 exit();
             }
-            $dsn = sprintf ("sqlite:%s/%s.db", $cfg['aux_dir'], $cfg['siteid']);
+            $dsn = sprintf ("sqlite:%s", $name);
             $db->pdo = new PDO ($dsn);
         } else {
             fatal ("invalid db configured");
