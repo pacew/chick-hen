@@ -83,8 +83,11 @@ def scan(key, divisor):
 
 primes = [ 2, 3, 5, 7, 11, 13, 17 ]
 
-for scan_num in range(0, len(primes)):
-   prime = primes[scan_num]
-   print("scan {0}".format(prime))
-   scan(scan_num, prime)
+try:
+   for scan_num in range(0, len(primes)):
+      prime = primes[scan_num]
+      print("scan {0}".format(prime))
+      scan(scan_num, prime)
+except(KeyboardInterrupt):
+   sys.exit(0)
    
