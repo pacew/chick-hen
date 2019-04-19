@@ -25,11 +25,6 @@
     color: #ddd !important;
 }
 
-.content {
-    padding: 1em;
-    line-height: 1.2;
-}
-
 a {
     text-decoration: none;
 }
@@ -119,16 +114,26 @@ p {
     padding: .5em;
 }
 
-.banner_title {
-    text-align: center;
-}
-
-.banner .logo {
+nav {
+    background: #bbb;
+    width: 100%;
+    border-top: 2px solid #bbb;
     float: left;
 }
 
-.banner .login_link {
-    float: right;
+nav a {
+    display: inline-block;
+    padding: 0 .5em;
+    margin: 0 .5em;
+    background: #ddd;
 }
 
+nav a.active {
+    background: #fff;
+}
+
+.content {
+    padding: 1em;
+    line-height: 1.2;
+}
 

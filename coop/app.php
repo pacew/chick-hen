@@ -36,6 +36,8 @@ function pfinish() {
     
     $pg .= "<body>\n";
 
+    $pg .= make_nav ();
+
     $pg .= "<div class='content'>\n";
     $pg .= $body;
     $pg .= "</div>\n";
@@ -50,3 +52,21 @@ function pfinish() {
     do_commits ();
     exit();
 }
+
+function make_nav_link ($name, $script) {
+}
+
+function make_nav () {
+    $nav = "";
+
+    $nav .= "<nav>\n";
+    $nav .= mklink ("home", "/");
+    $nav .= mklink_class ("coops", "coops.php", "active");
+    $nav .= "</nav>\n";
+    $nav .= "<div style='clear:both'></div>\n";
+
+    return ($nav);
+}
+
+/* this require never returns ... don't but any code after it */
+require ($_SERVER['APP_ROOT'] . "/router.php");
