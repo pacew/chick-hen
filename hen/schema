@@ -12,6 +12,5 @@ col email varchar
 col passwd varchar
 
 table chicks
-col chick_id integer
-col mac varchar
+col chick_mac varchar
 col last_ts timestamp
