@@ -33,7 +33,9 @@ col chick_mac varchar
 
 table hwchan
 col hwchan_id integer
-col name varchar
+col chanlist_id integer
+col sort_order integer
+col hwchan_name varchar
 col chan_type integer
 col port integer
 col bit_width integer
@@ -41,9 +43,5 @@ col bit_position integer
 
 table chanlists
 col chanlist_id integer
-col name varchar
+col chanlist_name varchar
 
-table chanlist_elt
-col chanlist_id integer
-col position integer
-col hwchan_id integer

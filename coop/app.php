@@ -78,6 +78,7 @@ function make_nav () {
     $nav .= "<nav>\n";
     $nav .= make_nav_link ("home", "/");
     $nav .= make_nav_link ("hens", "hens.php");
+    $nav .= make_nav_link ("chans", "chans.php");
     $nav .= make_nav_link ("setup", "setup.php");
     $nav .= "</nav>\n";
     $nav .= "<div style='clear:both'></div>\n";
