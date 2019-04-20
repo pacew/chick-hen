@@ -32,9 +32,9 @@ def load_protocol(filename):
     global BROADCAST_MAC_HASH, HEN_MAC_HASH
     BROADCAST_MAC_HASH = the_protocol['BROADCAST_MAC_HASH']
     HEN_MAC_HASH = the_protocol['HEN_MAC_HASH']
-    global system_key
-    with open(".system_key") as file:
-        system_key = bytes.fromhex(file.readline().strip())
+    global hen_key
+    with open(".hen_key") as file:
+        hen_key = bytes.fromhex(file.readline().strip())
 
 
 def get_op(name):
@@ -73,7 +73,6 @@ def sign(pb):
 
 
 def decode_init(full_buf):
-    global system_key
     buf = full_buf[0:-4]
     sig = full_buf[-4:]
 
@@ -134,8 +133,8 @@ def decode(pb, pkt_name):
 
 
 def compute_digest(buf):
-    global system_key
-    h = hmac.new(system_key, buf, "sha256")
+    global hen_key
+    h = hmac.new(hen_key, buf, "sha256")
     d = h.digest()
     return (d[0:4])
 
