@@ -15,6 +15,7 @@ hen_key_hex = psite.getvar("hen_key")
 
 hen_key = bytes.fromhex(hen_key_hex)
 
+
 def apicall(params):
     global hen_key
 
@@ -34,19 +35,20 @@ def apicall(params):
     r = requests.post(endpoint, args)
 
     try:
-        val = r.json();
+        val = r.json()
     except(json.decoder.JSONDecodeError):
         err_text = psite.strip_tags(r.text)
-        val = dict(err=err_text);
+        val = dict(err=err_text)
 
     return (val)
- 
+
+
 macs = []
-psite.query ("select mac from chicks");
+psite.query("select mac from chicks")
 while True:
     row = psite.fetch()
     if row is None:
-        break;
+        break
     mac = row[0]
     macs.append(mac)
 
