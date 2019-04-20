@@ -26,6 +26,7 @@ table chicks
 col chick_mac varchar
 col chick_name varchar
 col hen_id integer
+col chanlist_id integer
 
 table reported_chicks
 col hen_name varchar

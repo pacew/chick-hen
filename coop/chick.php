@@ -11,6 +11,8 @@ $arg_edit = intval (@$_REQUEST['edit']);
 $arg_chick_name = trim (@$_REQUEST['chick_name']);
 $arg_delete = intval (@$_REQUEST['delete']);
 $arg_selected_chick_mac = trim (@$_REQUEST['selected_chick_mac']);
+$arg_assign_chanlist = intval (@$_REQUEST['assign_chanlist']);
+$arg_chanlist_id = intval (@$_REQUEST['chanlist_id']);
 
 if ($arg_attach == 1) {
     $possibilities = array ();
@@ -88,7 +90,7 @@ function attach_chick ($chick_mac, $hen_id) {
 }
 
 if ($arg_chick_mac) {
-    $q = query ("select chick_name, hen_id"
+    $q = query ("select chick_name, hen_id, chanlist_id"
                 ." from chicks"
                 ." where chick_mac = ?",
                 $arg_chick_mac);
@@ -99,6 +101,7 @@ if ($arg_chick_mac) {
 
     $db_chick_name = trim ($r->chick_name);
     $db_hen_id = intval ($r->hen_id);
+    $db_chanlist_id = intval ($r->chanlist_id);
 
     $q = query ("select hen_name"
                 ." from hens"
@@ -113,6 +116,18 @@ if ($arg_chick_mac) {
     $db_chick_name = "";
     $db_hen_id = 0;
     $db_hen_name = "";
+    $db_chanlist_id = 0;
+}
+
+$db_chanlist_name = "";
+if ($db_chanlist_id) {
+    $q = query ("select chanlist_name"
+                ." from chanlists"
+                ." where chanlist_id = ?",
+                $db_chanlist_id);
+    if (($r = fetch ($q)) != NULL) {
+        $db_chanlist_name = trim ($r->chanlist_name);
+    }
 }
 
 if ($arg_hen_id && $db_hen_id && $arg_hen_id != $db_hen_id) {
@@ -189,6 +204,47 @@ if ($arg_delete == 2) {
     redirect ($t);
 }
 
+if ($arg_assign_chanlist == 1) {
+    $q = query ("select chanlist_id, chanlist_name"
+                ." from chanlists"
+                ." order by chanlist_name, chanlist_id");
+    $clist = array ();
+    while (($r = fetch ($q)) != NULL) {
+        $elt = (object)NULL;
+        $elt->chanlist_id = intval ($r->chanlist_id);
+        $elt->chanlist_name = trim ($r->chanlist_name);
+        $clist[] = $elt;
+    }
+
+    $body .= "<h1>assign chanlist</h1>\n";
+    $body .= "<form action='chick.php'>\n";
+    $body .= "<input type='hidden' name='assign_chanlist' value='2' />\n";
+    $body .= sprintf ("<input type='hidden' name='chick_mac' value='%s' />\n",
+                      h($arg_chick_mac));
+    $body .= sprintf ("<input type='hidden' name='hen_id' value='%d' />\n",
+                      $arg_hen_id);
+    $body .= "<select name='chanlist_id'>\n";
+    make_option (0, $db_chanlist_id, "--select--");
+    foreach ($clist as $elt) {
+        make_option ($elt->chanlist_id, $db_chanlist_id, $elt->chanlist_name);
+    }
+    $body .= "</select>\n";
+    $body .= "<input type='submit' value='Save' />\n";
+    $t = sprintf ("chick.php?chick_mac=%s&hen_id=%d",
+                  urlencode ($arg_chick_mac), $arg_hen_id);
+    $body .= mklink ("cancel", $t);
+    $body .= "</form>\n";
+    pfinish ();
+}
+
+if ($arg_assign_chanlist == 2) {
+    query ("update chicks set chanlist_id = ? where chick_mac = ?",
+           array ($arg_chanlist_id, $arg_chick_mac));
+    $t = sprintf ("chick.php?chick_mac=%s&hen_id=%d",
+                  urlencode ($arg_chick_mac), $arg_hen_id);
+    redirect ($t);
+}
+
 $body .= "<table class='twocol'>\n";
 $body .= "<tr><th>chick_mac</th><td>";
 $body .= h($arg_chick_mac);
@@ -207,8 +263,17 @@ $body .= "<tr><th>hen_name</th><td>";
 $t = sprintf ("hen.php?hen_id=%d", $db_hen_id);
 $body .= mklink($db_hen_name, $t);
 $body .= "</td></tr>\n";
-$body .= "</table>\n";
+$body .= "<tr><th>chanlist</th><td>\n";
+$t = sprintf ("chanlist.php?chanlist_id=%d", $db_chanlist_id);
+$body .= mklink ($db_chanlist_name, $t);
+$t = sprintf ("chick.php?chick_mac=%s&hen_id=%d&assign_chanlist=1",
+              urlencode ($arg_chick_mac), $arg_hen_id);
+$body .= " ";
+$body .= mklink ("[change]", $t);
+$body .= "</td></tr>\n";
 
+
+$body .= "</table>\n";
 
 pfinish();
     
