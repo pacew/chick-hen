@@ -112,7 +112,8 @@ $rows = array ();
 while (($r = fetch ($q)) != NULL) {
     $cols = array ();
 
-    $t = sprintf ("chick.php?chick_mac=%s", urlencode ($r->chick_mac));
+    $t = sprintf ("chick.php?chick_mac=%s&hen_id=%d", 
+                  urlencode ($r->chick_mac), $arg_hen_id);
 
     $cols[] = mklink ($r->chick_name, $t);
     $cols[] = mklink ($r->chick_mac, $t);
@@ -122,7 +123,10 @@ while (($r = fetch ($q)) != NULL) {
 
 $body .= "<h1>chicks</h1>\n";
 $body .= mktable (array ("name", "mac"), $rows);
-            
+$t =sprintf ("chick.php?edit=1&hen_id=%d", $arg_hen_id);
+$body .= "<div>\n";
+$body .= mklink ("add chick", $t);
+$body .= "</div>\n";            
 
 pfinish();
     
