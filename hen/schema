@@ -1,15 +1,14 @@
 table seq
 col lastval integer
 
+table vars
+col name varchar
+col val varchar
+
 table sessions
 col session_id varchar
 col session varchar
 col updated timestamp
-
-table users
-col user_id integer
-col email varchar
-col passwd varchar
 
 table chicks
 col chick_mac varchar

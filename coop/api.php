@@ -20,8 +20,43 @@ if (strcmp ($computed_sig_hex, $arg_sig_hex) != 0) {
     json_finish ($ret);
 }
 
-$ret = (object)NULL;
-$ret->foo = "bar";
-$ret->params = $_REQUEST;
+$args = json_decode ($arg_payload, true);
+$op = @$args['op'];
 
+switch ($op) {
+case "report_chicks":
+    do_report_chicks ($args);
+    break;
+default:
+    $ret = (object)NULL;
+    $ret->err = "unknown op";
+    $ret->op = $op;
+    json_finish ($ret);
+}
+
+$ret = (object)NULL;
+$ret->err = "unhandled op";
 json_finish ($ret);
+
+
+function do_report_chicks ($args) {
+    $hen_name = $args['hen_name'];
+    
+    foreach ($args['macs'] as $mac) {
+        $q = query ("select 0"
+                    ." from reported_chicks"
+                    ." where hen_name = ?"
+                    ."   and chick_mac = ?",
+                    array ($hen_name, $mac));
+        if (fetch ($q) == NULL) {
+            query ("insert into reported_chicks (hen_name, chick_mac)"
+                   ." values (?,?)",
+                   array ($hen_name, $mac));
+        }
+    }
+
+    $ret = (object)NULL;
+    $ret->status = "ok";
+    json_finish ($ret);
+}
+    

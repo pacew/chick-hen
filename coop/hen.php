@@ -4,8 +4,6 @@ require_once ($_SERVER['APP_ROOT'] . "/app.php");
 
 pstart ();
 
-$body .= "<h1>hen</h1>\n";
-
 $arg_edit = intval(@$_REQUEST['edit']);
 $arg_delete = intval(@$_REQUEST['delete']);
 $coop_id = intval(@$_REQUEST['coop_id']);
@@ -28,6 +26,9 @@ if ($arg_hen_id) {
         $db_key = trim ($r->key);
     }
 }
+
+$body .= sprintf ("<h1>hen %s</h1>\n", h($db_hen_name));
+
 
 if ($coop_id) {
     $body .= "<div>\n";
@@ -97,8 +98,14 @@ if ($arg_delete == 2) {
 }
 
 $body .= "<table class='twocol'>\n";
+$body .= "<tr><th>ID</th><td>";
+$body .= sprintf ("%d", $arg_hen_id);
+$body .= "</td></tr>\n";
 $body .= "<tr><th>Name</th><td>";
 $body .= h($db_hen_name);
+$body .= " ";
+$t = sprintf ("hen.php?hen_id=%d&edit=1", $arg_hen_id);
+$body .= mklink ("[edit]", $t);
 $body .= "</td></tr>\n";
 $body .= "<tr><th>Key (text)</th><td>";
 $body .= h($db_key_text);

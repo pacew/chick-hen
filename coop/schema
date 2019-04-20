@@ -28,9 +28,13 @@ col key_text varchar
 col key varchar
 
 table chicks
-col chick_id integer
+col chick_mac varchar
 col chick_name varchar
 col hen_id integer
+
+table reported_chicks
+col hen_name varchar
+col chick_mac varchar
 
 table hwchan
 col hwchan_id integer

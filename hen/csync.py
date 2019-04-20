@@ -7,32 +7,56 @@ import hmac
 import base64
 import urllib
 
-with open(".hen_key") as f:
-    hen_key = bytes.fromhex(f.readline().strip())
+sys.path.insert(0, "/home/pace/psite")  # noqa: E402
+import psite
 
+hen_name = psite.getvar("hen_name")
+hen_key_hex = psite.getvar("hen_key")
+
+hen_key = bytes.fromhex(hen_key_hex)
 
 def apicall(params):
     global hen_key
 
-    payload = bytes(json.dumps(params), "utf8")
+    payload = params.copy()
+    payload['hen_name'] = hen_name
+    payload_bytes = bytes(json.dumps(payload), "utf8")
 
-    sig_binary = hmac.new(hen_key, payload, "sha256").digest()
+    sig_binary = hmac.new(hen_key, payload_bytes, "sha256").digest()
     sig_base64 = base64.b64encode(sig_binary)
-    args = dict(payload=payload, sig=sig_base64)
+    args = dict(payload=payload_bytes, sig=sig_base64)
 
     endpoint = "https://k.pacew.org:12912/api.php"
 
-    full_url = "{}?{}".format(endpoint, urllib.parse.urlencode(args))
+    full_url = "{}?{}&debug=1".format(endpoint, urllib.parse.urlencode(args))
     print(full_url)
 
     r = requests.post(endpoint, args)
-    return r.json()
 
+    try:
+        val = r.json();
+    except(json.decoder.JSONDecodeError):
+        err_text = psite.strip_tags(r.text)
+        val = dict(err=err_text);
 
-try:
-    val = apicall(dict(arg1='123', arg2='abc'))
-except(json.decoder.JSONDecodeError):
-    print("can't parse apicall result")
-    sys.exit(1)
+    return (val)
+ 
+macs = []
+psite.query ("select mac from chicks");
+while True:
+    row = psite.fetch()
+    if row is None:
+        break;
+    mac = row[0]
+    macs.append(mac)
+
+args = {}
+args['op'] = "report_chicks"
+args['macs'] = macs
+
+val = apicall(args)
+if 'err' in val:
+    print("error:", val['err'])
+    sys.exit(0)
 
 print(val)

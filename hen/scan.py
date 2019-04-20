@@ -20,16 +20,14 @@ def scan_response(mac):
     if r is None:
         print("new chick", mac)
 
-        chick_id = psite.get_seq()
-        psite.query("insert into chicks(chick_id,mac) values(?,?)",
-                    (chick_id, mac))
+        psite.query("insert into chicks(mac) values(?)",
+                    (mac,))
     else:
         print("dup chick", mac)
-        chick_id = r[0]
 
     psite.query("update chicks set last_ts = datetime('now')"
-                "where chick_id = ?",
-                (chick_id,))
+                "where mac = ?",
+                (mac,))
     psite.commit()
 
 
