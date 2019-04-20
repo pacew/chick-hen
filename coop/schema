@@ -16,14 +16,9 @@ col user_id integer
 col email varchar
 col passwd varchar
 
-table coops
-col coop_id integer
-col coop_name varchar
-
 table hens
 col hen_id integer
 col hen_name varchar
-col coop_id integer
 col key_text varchar
 col key varchar
 

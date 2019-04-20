@@ -43,14 +43,16 @@ function do_report_chicks ($args) {
     $hen_name = $args['hen_name'];
     
     foreach ($args['macs'] as $mac) {
-        $q = query ("select 0"
+        $q = query ("select hen_name"
                     ." from reported_chicks"
-                    ." where hen_name = ?"
-                    ."   and chick_mac = ?",
-                    array ($hen_name, $mac));
-        if (fetch ($q) == NULL) {
+                    ." where chick_mac = ?",
+                    $mac);
+        if (($r = fetch ($q)) == NULL) {
             query ("insert into reported_chicks (hen_name, chick_mac)"
                    ." values (?,?)",
+                   array ($hen_name, $mac));
+        } else if (strcmp ($r->hen_name, $hen_name) != 0) {
+            query ("update reported_chicks set hen_name = ? where chick_mac = ?",
                    array ($hen_name, $mac));
         }
     }

@@ -54,14 +54,31 @@ function pfinish() {
 }
 
 function make_nav_link ($name, $script) {
+    $class ="";
+
+    preg_match ('/([-_a-z0-9]+[.]php)/', $_SERVER['SCRIPT_NAME'], $matches);
+    $running_script = @$matches[1];
+    if (strcasecmp ($script, $running_script) == 0)
+        $class = "active";
+    if (($running_script == "index.php" || $running_script == "")
+        && $script == "/") {
+        $class = "active";
+    }
+
+    return (mklink_class ($name, $script, $class));
 }
 
+    
+
+
 function make_nav () {
+
     $nav = "";
 
     $nav .= "<nav>\n";
-    $nav .= mklink ("home", "/");
-    $nav .= mklink_class ("coops", "coops.php", "active");
+    $nav .= make_nav_link ("home", "/");
+    $nav .= make_nav_link ("hens", "hens.php");
+    $nav .= make_nav_link ("setup", "setup.php");
     $nav .= "</nav>\n";
     $nav .= "<div style='clear:both'></div>\n";
 

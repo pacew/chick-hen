@@ -6,7 +6,6 @@ pstart ();
 
 $arg_edit = intval(@$_REQUEST['edit']);
 $arg_delete = intval(@$_REQUEST['delete']);
-$coop_id = intval(@$_REQUEST['coop_id']);
 $arg_hen_id = intval(@$_REQUEST['hen_id']);
 $arg_hen_name = trim(@$_REQUEST['hen_name']);
 
@@ -15,12 +14,11 @@ $db_key_text = "";
 $db_key = "";
 
 if ($arg_hen_id) {
-    $q = query ("select coop_id, hen_name, key_text, key"
+    $q = query ("select hen_name, key_text, key"
         ." from hens"
         ." where hen_id = ?",
         $arg_hen_id);
     if (($r = fetch ($q)) != NULL) {
-        $coop_id = intval ($r->coop_id);
         $db_hen_name = trim ($r->hen_name);
         $db_key_text = trim ($r->key_text);
         $db_key = trim ($r->key);
@@ -30,18 +28,9 @@ if ($arg_hen_id) {
 $body .= sprintf ("<h1>hen %s</h1>\n", h($db_hen_name));
 
 
-if ($coop_id) {
-    $body .= "<div>\n";
-    $t = sprintf ("coop.php?coop_id=%d", $coop_id);
-    $body .= mklink ("back to coop", $t);
-    $body .= "</div>\n";
-}
-
 if ($arg_edit == 1) {
     $body .= "<form action='hen.php'>\n";
     $body .= "<input type='hidden' name='edit' value='2' />\n";
-    $body .= sprintf ("<input type='hidden' name='coop_id' value='%d' />\n",
-        $coop_id);
     $body .= sprintf ("<input type='hidden' name='hen_id' value='%d' />\n",
         $arg_hen_id);
     
@@ -53,12 +42,7 @@ if ($arg_edit == 1) {
 
     $body .= "<tr><th></th><td>";
     $body .= "<input type='submit' value='Save' />\n";
-    if ($coop_id) {
-        $t = sprintf ("coop.php?coop_id=%d", $coop_id);
-    } else {
-        $t = "coops.php";
-    }
-    $body .= mklink ("cancel", $t);
+    $body .= mklink ("cancel", "hens.php");
     if ($arg_hen_id) {
         $body .= " | ";
         $t = sprintf ("hen.php?hen_id=%d&delete=1", $arg_hen_id);
@@ -74,13 +58,12 @@ if ($arg_edit == 1) {
 if ($arg_edit == 2) {
     if ($arg_hen_id == 0) {
         $arg_hen_id = get_seq ();
-        query ("insert into hens (hen_id, coop_id) values (?,?)", 
-            array ($arg_hen_id, $coop_id));
+        query ("insert into hens (hen_id) values (?)", 
+            array ($arg_hen_id));
     }
     query ("update hens set hen_name = ? where hen_id = ?",
         array ($arg_hen_name, $arg_hen_id));
-    $t = sprintf ("coop.php?coop_id=%d", $coop_id);
-    redirect ($t);
+    redirect ("hens.php");
 }
 
 if ($arg_delete == 1) {
@@ -93,8 +76,7 @@ if ($arg_delete == 1) {
 
 if ($arg_delete == 2) {
     query ("delete from hens where hen_id = ?", $arg_hen_id);
-    $t = sprintf ("coop.php?coop_id=%d", $coop_id);
-    redirect ($t);
+    redirect ("hens.php");
 }
 
 $body .= "<table class='twocol'>\n";
@@ -121,12 +103,26 @@ $body .= "</td></tr>\n";
 
 $body .= "</table>\n";
 
-$t = sprintf ("api.php?hen_id=%d", $arg_hen_id);
-$t = make_absolute ($t);
-$body .= sprintf ("<input type='text' readonly='readonly'"
-    ." size='50' value='%s' />\n",
-    h($t));
-$body .= mklink ("[link]", $t);
+$q = query ("select chick_name, chick_mac"
+            ." from chicks"
+            ." where hen_id = ?"
+            ." order by chick_name, chick_mac",
+            $arg_hen_id);
+$rows = array ();
+while (($r = fetch ($q)) != NULL) {
+    $cols = array ();
+
+    $t = sprintf ("chick.php?chick_mac=%s", urlencode ($r->chick_mac));
+
+    $cols[] = mklink ($r->chick_name, $t);
+    $cols[] = mklink ($r->chick_mac, $t);
+
+    $rows[] = $cols;
+}
+
+$body .= "<h1>chicks</h1>\n";
+$body .= mktable (array ("name", "mac"), $rows);
+            
 
 pfinish();
     
