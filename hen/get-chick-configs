@@ -1,0 +1,2 @@
+#! /bin/sh
+exec python3 get-chick-configs.py "$@"

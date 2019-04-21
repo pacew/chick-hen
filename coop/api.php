@@ -27,6 +27,9 @@ switch ($op) {
 case "report_chicks":
     do_report_chicks ($args);
     break;
+case "get_chick_configs":
+    do_get_chick_configs ($args);
+    break;
 default:
     $ret = (object)NULL;
     $ret->err = "unknown op";
@@ -62,3 +65,81 @@ function do_report_chicks ($args) {
     json_finish ($ret);
 }
     
+function do_get_chick_configs ($args) {
+    $hen_name = $args['hen_name'];
+    
+    $q = query ("select hen_id"
+                ." from hens"
+                ." where hen_name = ?",
+                $hen_name);
+    if (($r = fetch ($q)) == NULL) {
+        $ret = (object)NULL;
+        $ret->err = "hen not found";
+        json_finish ($ret);
+    }
+    $hen_id = intval ($r->hen_id);
+
+    $q = query ("select chick_mac, chanlist_id"
+                ." from chicks"
+                ." where hen_id = ?",
+                $hen_id);
+    $chicks = array();
+    while (($r = fetch ($q)) != NULL) {
+        $cp = (object)NULL;
+        $cp->chick_mac = trim ($r->chick_mac);
+        $cp->chanlist_id = intval ($r->chanlist_id);
+        $chicks[] = $cp;
+        
+
+    }
+        
+    $q = query ("select c.chanlist_id, c.chanlist_name"
+                ." from chanlists c"
+                ." where c.chanlist_id in (select distinct ch.chanlist_id"
+                ."                          from chicks ch"
+                ."                          where ch.hen_id = ?)",
+                $hen_id);
+    $chanlists = array ();
+    while (($r = fetch ($q)) != NULL) {
+        $chanlist_id = intval ($r->chanlist_id);
+        
+        $cp = (object)NULL;
+        $cp->chanlist_id = $chanlist_id;
+        $cp->chanlist_name = trim ($r->chanlist_name);
+        $cp->chans = array ();
+
+        $chanlists[$chanlist_id] = $cp;
+    }
+
+    $q = query ("select h.chanlist_id, h.hwchan_name, h.chan_type, h.port,"
+                ."   h.bit_width, h.bit_position"
+                ." from hwchan h"
+                ." where h.chanlist_id in"
+                ."   (select distinct c.chanlist_id"
+                ."      from chicks c"
+                ."      where c.hen_id = ?)"
+                ." order by h.chanlist_id, h.sort_order, h.hwchan_id",
+                $hen_id);
+    while (($r = fetch ($q)) != NULL) {
+        $chanlist_id = intval ($r->chanlist_id);
+        
+        $hp = (object)NULL;
+        $hp->hwchan_name = trim ($r->hwchan_name);
+        $hp->chan_type = intval ($r->chan_type);
+        $hp->port = intval ($r->port);
+        $hp->bit_width = intval ($r->bit_width);
+        $hp->bit_position = intval ($r->bit_position);
+
+        if (($cp = @$chanlists[$chanlist_id]) != NULL) {
+            $cp->chans[] = $hp;
+        }
+    }
+        
+
+    $ret = (object)NULL;
+    $ret->chicks = $chicks;
+    $ret->chanlists = $chanlists;
+    json_finish ($ret);
+
+       
+}
