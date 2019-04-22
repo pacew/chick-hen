@@ -28,7 +28,6 @@ pkt probe_response 3
 pkt hdr 0
 8 mac_hash
 4 op
-1 to_hen
 
 pkt data 0
 8 last_strength
@@ -51,10 +50,11 @@ pkt status 6
 32 acked_timestamp
 24 newest_seq
 
-pkt chan_config 7
-6 idx
-6 nbits
-6 input_chan
-16 options
-1 last
+pkt chanlist 7
+4 chan_type
+16 port
+6 bit_width
+6 bit_position
+# repeats to end of pkt
+
 

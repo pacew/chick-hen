@@ -446,7 +446,6 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	if (scan_digest (scan.key, scan.divisor, scan.remainder)) {
 		xhdr.mac_hash = HEN_MAC_HASH;
 		xhdr.op = OP_PROBE_RESPONSE;
-		xhdr.to_hen = 1;
 		pr.mac0 = my_mac_addr[0];
 		pr.mac1 = my_mac_addr[1];
 		pr.mac2 = my_mac_addr[2];
@@ -491,11 +490,6 @@ rcv_soak (void)
 		}
 
 		proto_decode (&pb, &proto_hdr_desc, &hdr);
-
-		if (hdr.to_hen) {
-			printf ("ignore hen pkt\n");
-			continue;
-		}
 
 		if (hdr.mac_hash != BROADCAST_MAC_HASH) {
 			printf ("ignore non-broadcast\n");

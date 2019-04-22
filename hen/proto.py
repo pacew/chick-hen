@@ -4,6 +4,7 @@ import socket
 import json
 import unittest
 import hmac
+import hashlib
 
 CHICK_HEN_MADDR = "224.0.0.130"
 CHICK_HEN_PORT = 32519
@@ -134,6 +135,22 @@ def compute_digest(buf):
     h = hmac.new(hen_key_bin, buf, "sha256")
     d = h.digest()
     return (d[0:4])
+
+# first 31 bits of sha256 of buffer as a non-neg integer (little endian)
+def simple_digest(buf):
+    full_digest = hashlib.sha256(buf).digest()
+    b0 = full_digest[0]
+    b1 = full_digest[1]
+    b2 = full_digest[2]
+    b3 = full_digest[3]
+    return (b0 | (b1 << 8) | (b2 << 16) | ((b3 & 0x7f) << 24))
+
+def compute_mac_hash(mac):
+    mac_bin = bytes(map(lambda elt: int(elt,16), mac.split(":")))
+    mac_hash = simple_digest(mac_bin) & 0xff
+    if mac_hash == BROADCAST_MAC_HASH or mac_hash == HEN_MAC_HASH:
+        mac_hash = SUBSTITUE_MAC_HASH
+    return mac_hash
 
 
 def send(msg):

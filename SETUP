@@ -34,7 +34,9 @@ browse to coop -> chans; add chanlist
 * assign chanlist to chicks
 browse to coop -> hens -> chick -> chanlist -> change
 
-* transfer chanclist configuration to hen
+* transfer chanlist configuration to hen
 $ cd hen; ./get-chick-configs
 
+* send chanlist config to chick
+$ cd hen; ./put-chick-configs
 

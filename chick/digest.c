@@ -3,6 +3,7 @@
 /* apt-get install libssl-dev */
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/sha.h>
 
 #include "proto-common.h"
 
@@ -54,19 +55,19 @@ scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder)
 	return (0);
 }
 
+/* first 31 bits of sha256 of buffer as a non-neg integer (little endian) */
 uint32_t
 simple_digest (void *buf, int len)
 {
-	unsigned char full_digest[EVP_MAX_MD_SIZE];
+	unsigned char full_digest[SHA256_DIGEST_LENGTH];
 	uint32_t val;
 
-	/* HMAC chokes if key is NULL, even if key len is 0 */
-	HMAC(EVP_sha256(),
-	     "", 0,
-	     buf, len,
-	     full_digest, NULL);
+	SHA256(buf, len, full_digest);
 
-	memcpy (&val, full_digest, sizeof val);
+	val = full_digest[0] 
+		| (full_digest[1] << 8) 
+		| (full_digest[2] << 16)
+		| ((full_digest[3] & 0x7f) << 24);
 	return (val);
 }
 

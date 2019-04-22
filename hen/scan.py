@@ -42,7 +42,6 @@ def scan(key, divisor):
         hdr = {}
         hdr['mac_hash'] = proto.BROADCAST_MAC_HASH
         hdr['op'] = proto.get_op('scan')
-        hdr['to_hen'] = 0
 
         pb = proto.encode_init()
         proto.encode(pb, "hdr", hdr)
