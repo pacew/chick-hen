@@ -128,21 +128,31 @@ proto_encode_init (struct proto_buf *pb, void *buf, int size)
 
 void
 proto_decode_init (struct proto_buf *pb, 
-		   void *key, int keylen,
+		   void *hen_key, int hen_key_len,
+		   void *chick_key, int chick_key_len,
 		   void *buf, int full_size)
 {
 	unsigned char *pkt_sig;
 	int size;
 	unsigned char computed_sig[PKT_SIG_SIZE];
+	unsigned char *key;
+	int key_len;
 	
 	memset (pb, 0, sizeof *pb);
 
-	if (full_size < PKT_SIG_SIZE)
+	if (full_size < PKT_SIG_SIZE + 1)
 		return;
 	pkt_sig = buf + full_size - PKT_SIG_SIZE;
 	size = full_size - PKT_SIG_SIZE;
 
-	compute_pkt_sig (computed_sig, key, keylen, buf, size);
+	if (*(unsigned char *)buf == BROADCAST_MAC_HASH) {
+		key = hen_key;
+		key_len = hen_key_len;
+	} else {
+		key = chick_key;
+		key_len = chick_key_len;
+	}
+	compute_pkt_sig (computed_sig, key, key_len, buf, size);
 
 	if (memcmp (computed_sig, pkt_sig, PKT_SIG_SIZE) == 0)
 		pb->sig_ok = 1;

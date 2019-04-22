@@ -24,10 +24,16 @@ struct proto_buf {
 
 #define PKT_SIG_SIZE 4
 
-unsigned char *my_mac_addr;
+#define HEN_KEY_LEN 32
+#define MAC_LEN 6
+#define CHICK_KEY_LEN (HEN_KEY_LEN + MAC_LEN)
+unsigned char chick_key[CHICK_KEY_LEN];
+
+unsigned char my_mac_addr[MAC_LEN];
 
 void proto_decode_init (struct proto_buf *pb, 
-			void *key, int kenlen,
+			void *hen_key, int hen_key_len,
+			void *chick_key, int chick_key_len,
 			void *buf, int size);
 void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
@@ -42,8 +48,6 @@ void compute_pkt_sig (unsigned char *sig,
 		      void *buf, int len);
 int scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder);
 uint32_t simple_digest (void *buf, int size);
-
-
-
+int compute_mac_hash (unsigned char *mac_bin);
 
 #endif /* _PROTO_H_ */

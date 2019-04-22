@@ -82,12 +82,11 @@ bad:
 	return (-1);
 }
 
-unsigned char *
-get_my_mac_addr (void)
+int
+get_my_mac_addr (unsigned char *mac, int mac_len)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct sockaddr_ll *laddr;
-	static unsigned char mac[6];
 	int i;
 
 	if (getifaddrs (&ifaddr) >= 0) {
@@ -97,21 +96,21 @@ get_my_mac_addr (void)
 			
 			laddr = (struct sockaddr_ll *)ifa->ifa_addr;
 			
-			if (laddr->sll_halen != 6)
+			if (laddr->sll_halen != mac_len)
 				continue;
 
 			/* ignore all zero macs */
-			for (i = 0; i < 6; i++) {
+			for (i = 0; i < mac_len; i++) {
 				if (laddr->sll_addr[i] != 0)
 					break;
 			}
-			if (i == 6)
+			if (i == mac_len)
 				continue;
 
-			memcpy (mac, laddr->sll_addr, 6);
-			break;
+			memcpy (mac, laddr->sll_addr, mac_len);
+			return (0);
 		}
 	}
 
-	return (mac);
+	return (-1);
 }

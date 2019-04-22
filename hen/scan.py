@@ -46,7 +46,7 @@ def scan(key, divisor):
         pb = proto.encode_init()
         proto.encode(pb, "hdr", hdr)
         proto.encode(pb, "scan", scan)
-        proto.sign(pb)
+        proto.sign_with_hen_key(pb)
         if vflag:
             proto.dump(pb['buf'])
 

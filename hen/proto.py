@@ -30,9 +30,10 @@ def load_protocol(filename):
     global the_protocol
     with open(filename) as file:
         the_protocol = json.load(file)
-    global BROADCAST_MAC_HASH, HEN_MAC_HASH
+    global BROADCAST_MAC_HASH, HEN_MAC_HASH, SUBSTITUTE_MAC_HASH
     BROADCAST_MAC_HASH = the_protocol['BROADCAST_MAC_HASH']
     HEN_MAC_HASH = the_protocol['HEN_MAC_HASH']
+    SUBSTITUTE_MAC_HASH = the_protocol['SUBSTITUTE_MAC_HASH']
 
 
 def get_op(name):
@@ -65,8 +66,13 @@ def encode_val(pb, val, bits):
     pb['avail_bits'] = avail_bits
 
 
-def sign(pb):
-    d = compute_digest(pb['buf'])
+def sign_with_hen_key(pb):
+    d = compute_hen_digest(pb['buf'])
+    pb['buf'].extend(d)
+
+
+def sign_with_chick_key(pb, chick_mac_bin):
+    d = compute_chick_digest(pb['buf'], chick_mac_bin)
     pb['buf'].extend(d)
 
 
@@ -74,7 +80,7 @@ def decode_init(full_buf):
     buf = full_buf[0:-4]
     sig = full_buf[-4:]
 
-    d = compute_digest(buf)
+    d = compute_hen_digest(buf)
     sig_ok = (sig == d)
 
     return dict(buf=buf, avail_bits=len(buf)*8, used_bits=0, sig_ok=sig_ok)
@@ -130,11 +136,18 @@ def decode(pb, pkt_name):
     return pval
 
 
-def compute_digest(buf):
+def compute_hen_digest(buf):
     global hen_key_bin
-    h = hmac.new(hen_key_bin, buf, "sha256")
-    d = h.digest()
-    return (d[0:4])
+    d = hmac.new(hen_key_bin, buf, "sha256").digest()
+    return d[0:4]
+
+
+def compute_chick_digest(buf, chick_mac_bin):
+    global hen_key_bin
+    key = hen_key_bin + chick_mac_bin
+    d = hmac.new(key, buf, "sha256").digest()
+    return d[0:4]
+
 
 # first 31 bits of sha256 of buffer as a non-neg integer (little endian)
 def simple_digest(buf):
@@ -143,13 +156,20 @@ def simple_digest(buf):
     b1 = full_digest[1]
     b2 = full_digest[2]
     b3 = full_digest[3]
-    return (b0 | (b1 << 8) | (b2 << 16) | ((b3 & 0x7f) << 24))
+    return b0 | (b1 << 8) | (b2 << 16) | ((b3 & 0x7f) << 24)
 
-def compute_mac_hash(mac):
-    mac_bin = bytes(map(lambda elt: int(elt,16), mac.split(":")))
+
+def mac_to_bin(mac):
+    octet_strings = mac.split(":")
+    octet_bytes = map(lambda x: int(x, 16), octet_strings)
+    mac_bin = bytes(octet_bytes)
+    return mac_bin
+
+
+def compute_mac_hash(mac_bin):
     mac_hash = simple_digest(mac_bin) & 0xff
-    if mac_hash == BROADCAST_MAC_HASH or mac_hash == HEN_MAC_HASH:
-        mac_hash = SUBSTITUE_MAC_HASH
+    if mac_hash in [BROADCAST_MAC_HASH, HEN_MAC_HASH, 0, 0xff]:
+        mac_hash = SUBSTITUTE_MAC_HASH
     return mac_hash
 
 
@@ -158,11 +178,8 @@ def send(msg):
     sock.sendto(msg, (CHICK_HEN_MADDR, CHICK_HEN_PORT))
 
 
-def rcv(delay=0):
+def rcv(delay=0.250):
     global sock
-
-    if delay == 0:
-        delay = 0.250
 
     while True:
         try:
@@ -207,7 +224,7 @@ class TestProto(unittest.TestCase):
         pb = encode_init()
 
         encode(pb, 'chan_config', cfg)
-        sign(pb)
+        sign_with_hen_key(pb)
 
         buf = pb['buf']
         pb = decode_init(buf)

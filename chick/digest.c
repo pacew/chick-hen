@@ -5,7 +5,7 @@
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 
-#include "proto-common.h"
+#include "proto-gen.h"
 
 void
 compute_pkt_sig (unsigned char *sig, void *key, int keylen, void *buf, int len)
@@ -71,3 +71,19 @@ simple_digest (void *buf, int len)
 	return (val);
 }
 
+int
+compute_mac_hash (unsigned char *mac_bin)
+{
+	int mac_hash;
+	
+	mac_hash = simple_digest (mac_bin, 6) & 0xff;
+	switch (mac_hash) {
+	case BROADCAST_MAC_HASH:
+	case HEN_MAC_HASH:
+	case 0:
+	case 0xff:
+		mac_hash = SUBSTITUTE_MAC_HASH;
+	}
+	return (mac_hash);
+}
+	

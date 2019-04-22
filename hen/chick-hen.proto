@@ -1,5 +1,6 @@
 const BROADCAST_MAC_HASH 21
 const HEN_MAC_HASH 22
+const SUBSTITUTE_MAC_HASH 23
 
 pkt scan 1
 8 key

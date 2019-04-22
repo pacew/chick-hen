@@ -2,8 +2,7 @@
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
-
-unsigned char *my_mac_addr;
+int my_mac_hash;
 
 int vflag;
 int xflag;
@@ -17,7 +16,7 @@ double listen_until_ts;
 double next_data_ts;
 
 struct nvram {
-	uint8_t hen_key[32];
+	uint8_t hen_key[HEN_KEY_LEN];
 	uint32_t sig;
 } __attribute__((packed));
 
@@ -313,10 +312,15 @@ main (int argc, char **argv)
 	if (optind != argc)
 		usage ();
 
-	my_mac_addr = get_my_mac_addr ();
+	if (get_my_mac_addr (my_mac_addr, MAC_LEN) < 0) {
+		fprintf (stderr, "can't find my mac addr\n");
+		exit (1);
+	}
 	printf ("my mac addr %02x:%02x:%02x:%02x:%02x:%02x\n",
 		my_mac_addr[0], my_mac_addr[1], my_mac_addr[2], 
 		my_mac_addr[3], my_mac_addr[4], my_mac_addr[5]);
+	my_mac_hash = compute_mac_hash (my_mac_addr);
+	printf ("my mac hash %d 0x%x\n", my_mac_hash, my_mac_hash);
 
 	nvram_startup ();
 
@@ -324,11 +328,11 @@ main (int argc, char **argv)
 		int i, val;
 		char *p;
 		
-		if (strlen (key) != sizeof nvram.hen_key * 2) {
+		if (strlen (key) != HEN_KEY_LEN * 2) {
 			fprintf (stderr, "invalid key\n");
 			exit (1);
 		}
-		for (i = 0, p = key; i < sizeof nvram.hen_key; i++, p += 2) {
+		for (i = 0, p = key; i < HEN_KEY_LEN; i++, p += 2) {
 			if (sscanf (p, "%2x", &val) != 1) {
 				fprintf (stderr, "non hex digit in key\n");
 				exit (1);
@@ -341,6 +345,9 @@ main (int argc, char **argv)
 		exit (0);
 		
 	}
+
+	memcpy (chick_key, nvram.hen_key, HEN_KEY_LEN);
+	memcpy (chick_key + HEN_KEY_LEN, my_mac_addr, MAC_LEN);
 
 	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
 		fprintf (stderr, "can't setup multicast\n");
@@ -456,7 +463,7 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 		proto_encode_init (&xpb, xbuf, sizeof xbuf);
 		proto_encode (&xpb, &proto_hdr_desc, &xhdr);
 		proto_encode (&xpb, &proto_probe_response_desc, &pr);
-		proto_sign (&xpb, nvram.hen_key, sizeof nvram.hen_key);
+		proto_sign (&xpb, nvram.hen_key, HEN_KEY_LEN);
 		xlen = proto_used (&xpb);
 		dump (xbuf, xlen);
 
@@ -481,8 +488,15 @@ rcv_soak (void)
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
 		if (vflag)
 			dump (rbuf, len);
+
+		if (rbuf[0] != BROADCAST_MAC_HASH && rbuf[0] != my_mac_hash) {
+			printf ("skip mac hash 0x%x\n", rbuf[0]);
+			continue;
+		}
+		
 		proto_decode_init (&pb, 
-				   nvram.hen_key, sizeof nvram.hen_key,
+				   nvram.hen_key, HEN_KEY_LEN,
+				   chick_key, CHICK_KEY_LEN,
 				   rbuf, len);
 		if (! pb.sig_ok) {
 			printf ("bad sig\n");
@@ -491,8 +505,9 @@ rcv_soak (void)
 
 		proto_decode (&pb, &proto_hdr_desc, &hdr);
 
-		if (hdr.mac_hash != BROADCAST_MAC_HASH) {
-			printf ("ignore non-broadcast\n");
+		if (hdr.mac_hash != my_mac_hash
+		    && hdr.mac_hash != BROADCAST_MAC_HASH) {
+			printf ("not for me 0x%x\n", hdr.mac_hash);
 			continue;
 		}
 
@@ -504,6 +519,7 @@ rcv_soak (void)
 			handle_scan (&raddr, &hdr, &pb);
 			break;
 		default:
+			printf ("unknown op %d 0x%x\n", hdr.op, hdr.op);
 			dump (rbuf, len);
 			break;
 		}
