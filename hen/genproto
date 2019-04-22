@@ -74,9 +74,11 @@ with open(basename+".h", "w") as file:
       struct_name = "proto_"+pktname
       file.write("#define OP_"+pktname.upper()+" "+str(pdata['op'])+"\n")
       file.write ("struct "+struct_name+" {\n")
+      total_bits = 0
       for fdata in pdata['fields']:
          field = fdata['field']
          bits = fdata['bits']
+         total_bits += bits
          if bits <= 8:
             type = "uint8_t"
          elif bits <= 16:
@@ -87,6 +89,8 @@ with open(basename+".h", "w") as file:
          file.write ("\t"+type+" "+field+";\n")
       file.write ("};\n")
       file.write ("extern struct proto_desc "+struct_name+"_desc;\n")
+      file.write ("#define PROTO_{}_NBITS {}\n".format(pktname.upper(), 
+                                                        total_bits))
       file.write ("\n")
 
 with open(basename+".c", "w") as file:

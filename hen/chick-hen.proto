@@ -30,14 +30,16 @@ pkt hdr 0
 8 mac_hash
 4 op
 
+pkt cookie 0
+32 cookie
+
 pkt data 0
 8 last_strength
 24 seq
 # raw data follows
 
 pkt ack 4
-8 last_strength
-24 ack
+32 cookie_ack
 
 pkt set_params 5
 14 record_interval_secs

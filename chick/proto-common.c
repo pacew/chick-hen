@@ -127,38 +127,47 @@ proto_encode_init (struct proto_buf *pb, void *buf, int size)
 }
 
 void
-proto_decode_init (struct proto_buf *pb, 
-		   void *hen_key, int hen_key_len,
-		   void *chick_key, int chick_key_len,
-		   void *buf, int full_size)
+proto_decode_init (struct proto_buf *pb, void *buf, int full_size)
+{
+	memset (pb, 0, sizeof *pb);
+	pb->base = buf;
+	pb->avail_bits = full_size * 8;
+}
+
+/* strip sig from end of pkt. return 0 if valid sig, else -1 */
+int
+proto_checksig (struct proto_buf *pb, 
+		void *hen_key, int hen_key_len,
+		void *chick_key, int chick_key_len)
 {
 	unsigned char *pkt_sig;
-	int size;
 	unsigned char computed_sig[PKT_SIG_SIZE];
 	unsigned char *key;
 	int key_len;
+	int payload_nbytes;
 	
-	memset (pb, 0, sizeof *pb);
+	/* make sure there's at least a mac_hash first byte and a sig at end */
+	if (pb->avail_bits < (1 + PKT_SIG_SIZE) * 8)
+		return (-1);
+	
+	payload_nbytes = pb->avail_bits / 8 - PKT_SIG_SIZE;
+	
+	pkt_sig = pb->base + payload_nbytes;
+	pb->avail_bits = payload_nbytes * 8;
 
-	if (full_size < PKT_SIG_SIZE + 1)
-		return;
-	pkt_sig = buf + full_size - PKT_SIG_SIZE;
-	size = full_size - PKT_SIG_SIZE;
-
-	if (*(unsigned char *)buf == BROADCAST_MAC_HASH) {
+	if (*(unsigned char *)pb->base == BROADCAST_MAC_HASH) {
 		key = hen_key;
 		key_len = hen_key_len;
 	} else {
 		key = chick_key;
 		key_len = chick_key_len;
 	}
-	compute_pkt_sig (computed_sig, key, key_len, buf, size);
+	compute_pkt_sig (computed_sig, key, key_len, pb->base, payload_nbytes);
 
 	if (memcmp (computed_sig, pkt_sig, PKT_SIG_SIZE) == 0)
-		pb->sig_ok = 1;
+		return (0);
 
-	pb->base = buf;
-	pb->avail_bits = size * 8;
+	return (-1);
 }
 
 /* returns -1 on output overflow, number of bytes occupied by output */

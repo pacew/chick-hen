@@ -19,7 +19,6 @@ struct proto_buf {
 	void *base;
 	int used_bits;
 	int avail_bits;
-	int sig_ok;
 };
 
 #define PKT_SIG_SIZE 4
@@ -31,10 +30,10 @@ unsigned char chick_key[CHICK_KEY_LEN];
 
 unsigned char my_mac_addr[MAC_LEN];
 
-void proto_decode_init (struct proto_buf *pb, 
-			void *hen_key, int hen_key_len,
-			void *chick_key, int chick_key_len,
-			void *buf, int size);
+void proto_decode_init (struct proto_buf *pb, void *buf, int size);
+int proto_checksig (struct proto_buf *pb, 
+		    void *hen_key, int hen_key_len,
+		    void *chick_key, int chick_key_len);
 void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
 void proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval);

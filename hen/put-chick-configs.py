@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import sys
+import random
 
 sys.path.insert(0, "/home/pace/psite")  # noqa: E402
 import psite
@@ -12,7 +13,7 @@ hen_key_hex = psite.getvar("hen_key")
 hen_key = bytes.fromhex(hen_key_hex)
 
 
-def make_chick_config(chick_mac):
+def make_chick_config(chick_mac, rcvd_cookie):
     print("config", chick_mac)
 
     psite.query("select chanlist_id from chicks where chick_mac = ?",
@@ -41,6 +42,10 @@ def make_chick_config(chick_mac):
     pb = proto.encode_init()
     proto.encode(pb, "hdr", hdr)
 
+    cookie_pkt = {}
+    cookie_pkt['cookie'] = rcvd_cookie
+    proto.encode(pb, "cookie", cookie_pkt)
+
     q = psite.query("select chan_type, port, bit_width, bit_position"
                     " from chans"
                     " where chanlist_id = ?"
@@ -60,7 +65,9 @@ def make_chick_config(chick_mac):
 
 
 def put_chick_config(chick_mac):
-    pkt = make_chick_config(chick_mac)
+    cookie = random.randint(0, 0x7fffffff)
+
+    pkt = make_chick_config(chick_mac, cookie)
     print("xmit for", chick_mac)
     proto.dump(pkt)
 

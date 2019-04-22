@@ -2,6 +2,9 @@
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
+#define MAX_CHANS 10
+#define RAW_CHANLIST_SIZE (((MAX_CHANS * PROTO_CHANLIST_NBITS) + 7) / 8)
+
 int my_mac_hash;
 
 int vflag;
@@ -16,14 +19,36 @@ double listen_until_ts;
 double next_data_ts;
 
 struct nvram {
-	uint8_t hen_key[HEN_KEY_LEN];
 	uint32_t sig;
+	unsigned char hen_key[HEN_KEY_LEN];
+	uint16_t chanlist_used;
+	unsigned char chanlist[RAW_CHANLIST_SIZE];
 } __attribute__((packed));
 
 
 struct nvram nvram, nvram_saved;
 
 char nvram_filename[100];
+
+void
+nvram_parse (void)
+{
+	struct proto_buf pb;
+	struct proto_chanlist chanlist;
+
+	printf ("nvram parse: chanlist\n");
+	
+	proto_decode_init (&pb, nvram.chanlist, nvram.chanlist_used);
+	while (pb.used_bits + PROTO_CHANLIST_NBITS <= pb.avail_bits) {
+		proto_decode (&pb, &proto_chanlist_desc, &chanlist);
+		printf ("%d %d %d %d\n",
+			chanlist.chan_type,
+			chanlist.port,
+			chanlist.bit_width,
+			chanlist.bit_position);
+	}
+		
+}
 
 void
 nvram_startup (void)
@@ -60,6 +85,8 @@ nvram_startup (void)
 done:
 	if (! success)
 		memset (&nvram, 0, sizeof nvram);
+
+	nvram_parse ();
 
 	if (f)
 		fclose (f);
@@ -473,6 +500,47 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 }
 
 void
+handle_chanlist (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
+		 struct proto_buf *pb)
+{
+	unsigned char xbuf[10000];
+	int xlen;
+	struct proto_chanlist chanlist;
+	struct proto_buf xpb;
+	struct proto_hdr xhdr;
+	struct proto_ack ack;
+	struct proto_cookie cookie;
+	
+	printf ("chanlist\n");
+
+	proto_decode (pb, &proto_cookie_desc, &cookie);
+
+	proto_encode_init (&xpb, nvram.chanlist, sizeof nvram.chanlist);
+	while (pb->used_bits + PROTO_CHANLIST_NBITS <= pb->avail_bits) {
+		proto_decode (pb, &proto_chanlist_desc, &chanlist);
+		proto_encode (&xpb, &proto_chanlist_desc, &chanlist);
+	}
+	nvram.chanlist_used = proto_used (&xpb);
+	nvram_save ();
+	nvram_startup ();
+
+	proto_encode_init (&xpb, xbuf, sizeof xbuf);
+
+	xhdr.mac_hash = HEN_MAC_HASH;
+	xhdr.op = OP_ACK;
+	ack.cookie_ack = cookie.cookie;
+
+	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
+	proto_encode (&xpb, &proto_ack_desc, &ack);
+	proto_sign (&xpb, nvram.hen_key, HEN_KEY_LEN);
+	xlen = proto_used (&xpb);
+	dump (xbuf, xlen);
+
+	sendto (sock, xbuf, xlen, 0, 
+		(struct sockaddr *)raddr, sizeof *raddr);
+}
+
+void
 rcv_soak (void)
 {
 	struct sockaddr_in raddr;
@@ -494,11 +562,10 @@ rcv_soak (void)
 			continue;
 		}
 		
-		proto_decode_init (&pb, 
-				   nvram.hen_key, HEN_KEY_LEN,
-				   chick_key, CHICK_KEY_LEN,
-				   rbuf, len);
-		if (! pb.sig_ok) {
+		proto_decode_init (&pb, rbuf, len);
+		if (proto_checksig (&pb,
+				    nvram.hen_key, HEN_KEY_LEN,
+				    chick_key, CHICK_KEY_LEN) < 0) {
 			printf ("bad sig\n");
 			continue;
 		}
@@ -517,6 +584,9 @@ rcv_soak (void)
 			break;
 		case OP_SCAN:
 			handle_scan (&raddr, &hdr, &pb);
+			break;
+		case OP_CHANLIST:
+			handle_chanlist (&raddr, &hdr, &pb);
 			break;
 		default:
 			printf ("unknown op %d 0x%x\n", hdr.op, hdr.op);
