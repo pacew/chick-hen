@@ -127,22 +127,24 @@ proto_encode_init (struct proto_buf *pb, void *buf, int size)
 }
 
 void
-proto_decode_init (struct proto_buf *pb, void *buf, int full_size)
+proto_decode_init (struct proto_buf *pb, 
+		   void *key, int keylen,
+		   void *buf, int full_size)
 {
 	unsigned char *pkt_sig;
 	int size;
-	struct proto_digest computed_sig;
+	unsigned char computed_sig[PKT_SIG_SIZE];
 	
 	memset (pb, 0, sizeof *pb);
 
-	if (full_size < 4)
+	if (full_size < PKT_SIG_SIZE)
 		return;
-	pkt_sig = buf + full_size - 4;
-	size = full_size - 4;
+	pkt_sig = buf + full_size - PKT_SIG_SIZE;
+	size = full_size - PKT_SIG_SIZE;
 
-	compute_digest (&computed_sig, buf, size);
+	compute_pkt_sig (computed_sig, key, keylen, buf, size);
 
-	if (memcmp (computed_sig.digest, pkt_sig, 4) == 0)
+	if (memcmp (computed_sig, pkt_sig, PKT_SIG_SIZE) == 0)
 		pb->sig_ok = 1;
 
 	pb->base = buf;
@@ -173,19 +175,19 @@ proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval)
 }
 
 void
-proto_sign (struct proto_buf *pb)
+proto_sign (struct proto_buf *pb, void *key, int keylen)
 {
-	struct proto_digest d;
 	int used_bytes;
 	
 	used_bytes = proto_used (pb);
-	if ((used_bytes + sizeof d.digest) * 8 > pb->avail_bits) {
+	if ((used_bytes + PKT_SIG_SIZE) * 8 > pb->avail_bits) {
 		pb->err = 1;
 		return;
 	}
-	compute_digest (&d, pb->base, used_bytes);
-	memcpy (pb->base + used_bytes, d.digest, sizeof d.digest);
-	pb->used_bits += sizeof d.digest * 8;
+	compute_pkt_sig (pb->base + used_bytes, 
+			 key, keylen,
+			 pb->base, used_bytes);
+	pb->used_bits += PKT_SIG_SIZE * 8;
 }
 
 int

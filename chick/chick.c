@@ -17,7 +17,7 @@ double listen_until_ts;
 double next_data_ts;
 
 struct nvram {
-	uint8_t foo;
+	uint8_t hen_key[32];
 	uint32_t sig;
 } __attribute__((packed));
 
@@ -287,13 +287,18 @@ main (int argc, char **argv)
 	fd_set rset;
 	double now;
 	double secs;
+	char *key;
 	
 	last_rcv_strength = 0xaa;
 	next_seq = 0x123456;
 	series_number = 0xaabbccdd;
-	
-	while ((c = getopt (argc, argv, "vx")) != EOF) {
+
+	key = NULL;
+	while ((c = getopt (argc, argv, "vxk:")) != EOF) {
 		switch (c) {
+		case 'k':
+			key = optarg;
+			break;
 		case 'x':
 			xflag = 1;
 			break;
@@ -314,8 +319,28 @@ main (int argc, char **argv)
 		my_mac_addr[3], my_mac_addr[4], my_mac_addr[5]);
 
 	nvram_startup ();
-	nvram.foo = 123;
-	nvram_save ();
+
+	if (key != NULL) {
+		int i, val;
+		char *p;
+		
+		if (strlen (key) != sizeof nvram.hen_key * 2) {
+			fprintf (stderr, "invalid key\n");
+			exit (1);
+		}
+		for (i = 0, p = key; i < sizeof nvram.hen_key; i++, p += 2) {
+			if (sscanf (p, "%2x", &val) != 1) {
+				fprintf (stderr, "non hex digit in key\n");
+				exit (1);
+			}
+			nvram.hen_key[i] = val;
+		}
+
+		nvram_save ();
+		printf ("key saved\n");
+		exit (0);
+		
+	}
 
 	if ((sock = setup_multicast (CHICK_HEN_MADDR, CHICK_HEN_PORT)) < 0) {
 		fprintf (stderr, "can't setup multicast\n");
@@ -432,7 +457,7 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 		proto_encode_init (&xpb, xbuf, sizeof xbuf);
 		proto_encode (&xpb, &proto_hdr_desc, &xhdr);
 		proto_encode (&xpb, &proto_probe_response_desc, &pr);
-		proto_sign (&xpb);
+		proto_sign (&xpb, nvram.hen_key, sizeof nvram.hen_key);
 		xlen = proto_used (&xpb);
 		dump (xbuf, xlen);
 
@@ -457,7 +482,9 @@ rcv_soak (void)
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
 		if (vflag)
 			dump (rbuf, len);
-		proto_decode_init (&pb, rbuf, len);
+		proto_decode_init (&pb, 
+				   nvram.hen_key, sizeof nvram.hen_key,
+				   rbuf, len);
 		if (! pb.sig_ok) {
 			printf ("bad sig\n");
 			continue;

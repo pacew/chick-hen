@@ -22,21 +22,24 @@ struct proto_buf {
 	int sig_ok;
 };
 
-struct proto_digest {
-	unsigned char digest[4];
-};
+#define PKT_SIG_SIZE 4
 
 unsigned char *my_mac_addr;
 
-void proto_decode_init (struct proto_buf *pb, void *buf, int size);
+void proto_decode_init (struct proto_buf *pb, 
+			void *key, int kenlen,
+			void *buf, int size);
 void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
 void proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
-void proto_sign (struct proto_buf *pb);
+void proto_sign (struct proto_buf *pb, void *key, int keylen);
 int proto_used (struct proto_buf *pb);
 void proto_decode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
 
-void compute_digest (struct proto_digest *dp, void *buf, int len);
+void digest_init (void);
+void compute_pkt_sig (unsigned char *sig, 
+		      void *key, int keylen, 
+		      void *buf, int len);
 int scan_digest (uint8_t key, uint8_t divisor, uint8_t remainder);
 uint32_t simple_digest (void *buf, int size);
 
