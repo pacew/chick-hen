@@ -181,6 +181,7 @@ def init(key):
     global hen_key_bin
     hen_key_bin = bytes.fromhex(key)
 
+
 class TestProto(unittest.TestCase):
     def test_proto(self):
         load_protocol("proto-gen.json")
