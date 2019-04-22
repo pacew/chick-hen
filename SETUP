@@ -1,0 +1,40 @@
+start with blank psql data for coop and blank sqlite3 database for hen
+
+* make user and set password in psql database
+$ cd coop; ./mkuser
+
+* create a hen in the master database
+browse to coop, then hens -> add hen (choosing a name and key)
+
+* configure a hen, storing config in sqlite3 database
+$ cd hen; ./set-name-and-key
+
+* configure a chick
+$ cd chick; ./get-key
+currently peeks in the sqlite3 database to get the hen key, then
+stores in the chick nvram.  later, storing the hen_key in the chick
+will be part of flashing the firmware
+
+* now the chick and hen can communicate with authenticated messages
+over the network
+
+* get the chick mac's into the hen
+$ cd hen; ./scan
+
+* send the chick mac's to the coop
+$ cd hen; ./report-chicks
+
+* attach chick macs to chick records in coop
+browse to coop -> setup; dangling chicks that have been reported can
+be attached here
+
+* define data collection chanlists
+browse to coop -> chans; add chanlist
+
+* assign chanlist to chicks
+browse to coop -> hens -> chick -> chanlist -> change
+
+* transfer chanclist configuration to hen
+$ cd hen; ./get-chick-configs
+
+
