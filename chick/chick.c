@@ -413,6 +413,11 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 
 	proto_decode (pb, &proto_scan_desc, &scan);
 
+	if (scan.divisor == 0) {
+		printf ("ignore scan with zero divisor\n");
+		return;
+	}
+
 	if (scan_digest (scan.key, scan.divisor, scan.remainder)) {
 		xhdr.mac_hash = HEN_MAC_HASH;
 		xhdr.op = OP_PROBE_RESPONSE;

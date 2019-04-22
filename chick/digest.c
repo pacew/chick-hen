@@ -6,7 +6,7 @@
 
 #include "proto-common.h"
 
-static unsigned char system_key[32];
+static unsigned char hen_key[32];
 static int digest_ready;
 
 void
@@ -19,17 +19,17 @@ digest_init (void)
 	if (digest_ready)
 		return;
 
-	if ((f = fopen ("../hen/.system_key", "r")) == NULL) {
-		fprintf (stderr, "can't open .system_key\n");
+	if ((f = fopen (".hen_key", "r")) == NULL) {
+		fprintf (stderr, "can't open .hen_key\n");
 		exit (1);
 	}
 	
-	for (i = 0; i < sizeof system_key; i++) {
+	for (i = 0; i < sizeof hen_key; i++) {
 		if (fscanf (f, "%2x", &val) != 1) {
-			fprintf (stderr, "bad .system_key\n");
+			fprintf (stderr, "bad .hen_key\n");
 			exit (1);
 		}
-		system_key[i] = val;
+		hen_key[i] = val;
 	}
 
 	fclose (f);
@@ -48,7 +48,7 @@ compute_digest (struct proto_digest *dp, void *buf, int len)
 	digest_init ();
 
 	HMAC_Init_ex(ctx,
-		     system_key, sizeof system_key,
+		     hen_key, sizeof hen_key,
 		     EVP_sha256(), NULL);
 	
 	HMAC_Update (ctx, buf, len);

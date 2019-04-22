@@ -13,3 +13,17 @@ col updated timestamp
 table chicks
 col chick_mac varchar
 col last_ts timestamp
+col chanlist_id integer
+
+table chanlists
+col chanlist_id integer
+col chanlist_name varchar
+
+table chans
+col chanlist_id integer
+col sort_order integer
+col hwchan_name varchar
+col chan_type integer
+col port integer
+col bit_width integer
+col bit_position integer

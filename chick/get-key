@@ -1,0 +1,4 @@
+#! /bin/sh
+
+sqlite3 /var/hen-pace/hen-pace.db \
+	"select val from vars where name='hen_key'" > .hen_key

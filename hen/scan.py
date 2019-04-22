@@ -8,26 +8,28 @@ import proto
 
 vflag = False
 
-proto.init()
+hen_key = psite.getvar("hen_key")
+
+proto.init(hen_key)
 
 
-def scan_response(mac):
+def scan_response(chick_mac):
     psite.query("select 0"
                 " from chicks"
-                " where mac = ?",
-                (mac,))
+                " where chick_mac = ?",
+                (chick_mac,))
     r = psite.fetch()
     if r is None:
-        print("new chick", mac)
+        print("new chick", chick_mac)
 
-        psite.query("insert into chicks(mac) values(?)",
-                    (mac,))
+        psite.query("insert into chicks(chick_mac) values(?)",
+                    (chick_mac,))
     else:
-        print("dup chick", mac)
+        print("dup chick", chick_mac)
 
     psite.query("update chicks set last_ts = datetime('now')"
-                "where mac = ?",
-                (mac,))
+                "where chick_mac = ?",
+                (chick_mac,))
     psite.commit()
 
 

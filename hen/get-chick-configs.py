@@ -51,4 +51,41 @@ if 'err' in val:
     print("error:", val['err'])
     sys.exit(0)
 
-print(val)
+for chick in val['chicks']:
+    chick_mac = chick['chick_mac']
+    chanlist_id = int(chick['chanlist_id'])
+    psite.query ("update chicks set chanlist_id = ? where chick_mac = ?",
+                 (chanlist_id, chick_mac));
+
+psite.query ("delete from chanlists");
+psite.query ("delete from chans");
+
+for idx in val['chanlists']:
+    chanlist = val['chanlists'][idx]
+    chanlist_id = int(chanlist['chanlist_id'])
+    chanlist_name = chanlist['chanlist_name']
+
+    psite.query ("insert into chanlists(chanlist_id, chanlist_name)"
+                 "values (?,?)",
+                 (chanlist_id, chanlist_name))
+
+    sort_order = 1
+    for chan in chanlist['chans']:
+        hwchan_name = chan['hwchan_name']
+        chan_type = int(chan['chan_type'])
+        port = int(chan['port'])
+        bit_width = int(chan['bit_width'])
+        bit_position = int(chan['bit_position'])
+
+        psite.query("insert into chans (chanlist_id, sort_order, "
+                    "  hwchan_name, chan_type, port, bit_width, bit_position"
+                    ") values (?,?,?,?,?,?,?)",
+                    (chanlist_id, sort_order, hwchan_name, chan_type, port,
+                     bit_width, bit_position))
+        sort_order = sort_order + 1
+
+        
+psite.commit()
+
+    
+

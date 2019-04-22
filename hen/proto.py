@@ -21,7 +21,7 @@ def dump(buf):
             if (start + off >= len(buf)):
                 break
             print(' {0:02x}'.format(buf[start+off]), end='')
-            print('')
+        print('')
         start += 16
 
 
@@ -32,9 +32,6 @@ def load_protocol(filename):
     global BROADCAST_MAC_HASH, HEN_MAC_HASH
     BROADCAST_MAC_HASH = the_protocol['BROADCAST_MAC_HASH']
     HEN_MAC_HASH = the_protocol['HEN_MAC_HASH']
-    global hen_key
-    with open(".hen_key") as file:
-        hen_key = bytes.fromhex(file.readline().strip())
 
 
 def get_op(name):
@@ -56,10 +53,10 @@ def encode_val(pb, val, bits):
             buf.append(0)
             avail_bits = 8
         thistime = avail_bits
-        if thistime > togo:
+        if thistime >= togo:
             thistime = togo
-            mask = (1 << thistime) - 1
-            buf[-1] |= (remaining_val & mask) << (8 - avail_bits)
+        mask = (1 << thistime) - 1
+        buf[-1] |= (remaining_val & mask) << (8 - avail_bits)
 
         avail_bits -= thistime
         togo -= thistime
@@ -133,8 +130,8 @@ def decode(pb, pkt_name):
 
 
 def compute_digest(buf):
-    global hen_key
-    h = hmac.new(hen_key, buf, "sha256")
+    global hen_key_bin
+    h = hmac.new(hen_key_bin, buf, "sha256")
     d = h.digest()
     return (d[0:4])
 
@@ -175,11 +172,14 @@ def send_rcv(msg, retries=0, delay=0):
     return None
 
 
-def init():
-    global sock
+def init(key):
     load_protocol("proto-gen.json")
+
+    global sock
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+    global hen_key_bin
+    hen_key_bin = bytes.fromhex(key)
 
 class TestProto(unittest.TestCase):
     def test_proto(self):
