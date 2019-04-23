@@ -72,16 +72,16 @@ def sendrcv(pkt, cookie):
             if rpkt is None:
                 break
             proto.dump(rpkt)
-            pb = proto.decode_init (rpkt)
+            pb = proto.decode_init(rpkt)
             hdr = proto.decode(pb, 'hdr')
             if hdr['mac_hash'] != proto.HEN_MAC_HASH:
-                conitnue
+                continue
             cookie_pkt = proto.decode(pb, 'cookie')
             if int(cookie_pkt['cookie']) != cookie:
                 continue
             return pb
     return None
-    
+
 
 def put_chick_config(chick_mac):
     cookie = random.randint(0, 0x7fffffff)
@@ -91,7 +91,7 @@ def put_chick_config(chick_mac):
     proto.dump(pkt)
 
     pb = sendrcv(pkt, cookie)
-    if pb == None:
+    if pb is None:
         print("no response")
         return
     ack = proto.decode(pb, 'ack')
