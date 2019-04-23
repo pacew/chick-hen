@@ -13,7 +13,7 @@ hen_key_hex = psite.getvar("hen_key")
 hen_key = bytes.fromhex(hen_key_hex)
 
 
-def make_chick_config(chick_mac, rcvd_cookie):
+def make_chick_config(chick_mac, xmit_cookie):
     print("config", chick_mac)
 
     psite.query("select chanlist_id from chicks where chick_mac = ?",
@@ -43,7 +43,7 @@ def make_chick_config(chick_mac, rcvd_cookie):
     proto.encode(pb, "hdr", hdr)
 
     cookie_pkt = {}
-    cookie_pkt['cookie'] = rcvd_cookie
+    cookie_pkt['cookie'] = xmit_cookie
     proto.encode(pb, "cookie", cookie_pkt)
 
     q = psite.query("select chan_type, port, bit_width, bit_position"
@@ -64,20 +64,42 @@ def make_chick_config(chick_mac, rcvd_cookie):
     return (pb['buf'])
 
 
-def put_chick_config(chick_mac):
-    cookie = random.randint(0, 0x7fffffff)
-
-    pkt = make_chick_config(chick_mac, cookie)
-    print("xmit for", chick_mac)
-    proto.dump(pkt)
-
+def sendrcv(pkt, cookie):
     for retries in range(0, 2):
         proto.send(pkt)
         while True:
             rpkt = proto.rcv()
             if rpkt is None:
                 break
-            print("rcv", rpkt)
+            proto.dump(rpkt)
+            pb = proto.decode_init (rpkt)
+            hdr = proto.decode(pb, 'hdr')
+            if hdr['mac_hash'] != proto.HEN_MAC_HASH:
+                conitnue
+            cookie_pkt = proto.decode(pb, 'cookie')
+            if int(cookie_pkt['cookie']) != cookie:
+                continue
+            return pb
+    return None
+    
+
+def put_chick_config(chick_mac):
+    cookie = random.randint(0, 0x7fffffff)
+
+    pkt = make_chick_config(chick_mac, cookie)
+    print("xmit for", chick_mac, "cookie", cookie)
+    proto.dump(pkt)
+
+    pb = sendrcv(pkt, cookie)
+    if pb == None:
+        print("no response")
+        return
+    ack = proto.decode(pb, 'ack')
+    if ack['err'] != 0:
+        print("chick error", ack)
+        return
+    print("success")
+    return True
 
 
 hen_key = psite.getvar("hen_key")

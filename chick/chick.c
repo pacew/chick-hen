@@ -509,11 +509,12 @@ handle_chanlist (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	struct proto_buf xpb;
 	struct proto_hdr xhdr;
 	struct proto_ack ack;
-	struct proto_cookie cookie;
+	struct proto_cookie cookie_rpkt;
+	struct proto_cookie cookie_xpkt;
 	
 	printf ("chanlist\n");
 
-	proto_decode (pb, &proto_cookie_desc, &cookie);
+	proto_decode (pb, &proto_cookie_desc, &cookie_rpkt);
 
 	proto_encode_init (&xpb, nvram.chanlist, sizeof nvram.chanlist);
 	while (pb->used_bits + PROTO_CHANLIST_NBITS <= pb->avail_bits) {
@@ -528,12 +529,16 @@ handle_chanlist (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 
 	xhdr.mac_hash = HEN_MAC_HASH;
 	xhdr.op = OP_ACK;
-	ack.cookie_ack = cookie.cookie;
+	cookie_xpkt.cookie = cookie_rpkt.cookie;
+	ack.err = 0;
 
+	proto_encode_init (&xpb, xbuf, sizeof xbuf);
 	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
+	proto_encode (&xpb, &proto_cookie_desc, &cookie_xpkt);
 	proto_encode (&xpb, &proto_ack_desc, &ack);
 	proto_sign (&xpb, nvram.hen_key, HEN_KEY_LEN);
 	xlen = proto_used (&xpb);
+	printf ("ack\n");
 	dump (xbuf, xlen);
 
 	sendto (sock, xbuf, xlen, 0, 

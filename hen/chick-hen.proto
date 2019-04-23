@@ -39,7 +39,7 @@ pkt data 0
 # raw data follows
 
 pkt ack 4
-32 cookie_ack
+8 err
 
 pkt set_params 5
 14 record_interval_secs
