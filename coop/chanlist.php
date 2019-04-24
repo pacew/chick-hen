@@ -14,6 +14,7 @@ $arg_delete = intval (@$_REQUEST['delete']);
 $arg_move = intval (@$_REQUEST['move']);
 $arg_edit_name = intval (@$_REQUEST['edit_name']);
 $arg_chanlist_name = trim (@$_REQUEST['chanlist_name']);
+$arg_delete_chanlist = intval (@$_REQUEST['delete_chanlist']);
 
 pstart ();
 
@@ -51,11 +52,27 @@ if ($arg_edit_name == 2) {
     redirect ($t);
 }
 
+if ($arg_delete_chanlist == 1) {
+    $args = array ();
+    $args['delete_chanlist'] = 2;
+    $args['chanlist_id'] = $arg_chanlist_id;
+    $body .= make_confirm ("Confirm?", "delete", $args);
+    pfinish();
+}
+
+if ($arg_delete_chanlist == 2) {
+    query ("delete from chanlists where chanlist_id = ?", $arg_chanlist_id);
+    redirect ("chans.php");
+}
+
+
 $body .= "<div>\n";
 $t = sprintf ("chanlist.php?edit_name=1&chanlist_id=%d", $arg_chanlist_id);
 $body .= mklink ("rename", $t);
+$body .= " | ";
+$t = sprintf ("chanlist.php?delete_chanlist=1&chanlist_id=%d", $arg_chanlist_id);
+$body .= mklink ("delete", $t);
 $body .= "</div>\n";
-
 
 if ($arg_hwchan_id) {
     $q = query ("select hwchan_name, chan_type, port,"

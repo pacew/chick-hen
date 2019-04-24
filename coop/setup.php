@@ -4,6 +4,24 @@ require_once ($_SERVER['APP_ROOT'] . "/app.php");
 
 pstart ();
 
+$arg_clear_reports = intval (@$_REQUEST['clear_reports']);
+$arg_clear_dangling_chicks = intval (@$_REQUEST['clear_dangling_chicks']);
+
+if ($arg_clear_reports == 1) {
+    query ("delete from reported_chicks");
+    redirect ("setup.php");
+}
+
+if ($arg_clear_dangling_chicks == 1) {
+    query ("delete from chicks c"
+           ."  where c.hen_id not in (select h.hen_id from hens h)");
+    redirect ("setup.php");
+}
+
+$body .= "<div>\n";
+$body .= mklink ("clear reports", "setup.php?clear_reports=1");
+$body .= "</div>\n";
+
 $reported_hens = array ();
 $reported_chick_macs = array ();
 $reported_chicks = array ();
@@ -69,6 +87,10 @@ if (count($dangling_chicks) > 0) {
     foreach ($dangling_chicks as $cp) {
         $body .= sprintf ("%s(%s) ", h($cp->chick_name), h($cp->chick_mac));
     }
+    $body .= "<div>\n";
+    $body .= mklink ("clear dangling chicks", 
+                     "setup.php?clear_dangling_chicks=1");
+    $body .= "</div>\n";
 }
 
 $body .= "<h1>checking that all known chicks are assigned to hens ...</h1>\n";

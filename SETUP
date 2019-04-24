@@ -37,6 +37,6 @@ browse to coop -> hens -> chick -> chanlist -> change
 * transfer chanlist configuration to hen
 $ cd hen; ./get-chick-configs
 
-* send chanlist config to chick
+* send chanlist config to chick's nvram
 $ cd hen; ./put-chick-configs
 

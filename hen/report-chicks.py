@@ -44,13 +44,13 @@ def apicall(params):
 
 
 macs = []
-psite.query("select mac from chicks")
+psite.query("select chick_mac from chicks")
 while True:
     row = psite.fetch()
     if row is None:
         break
-    mac = row[0]
-    macs.append(mac)
+    chick_mac = row[0]
+    macs.append(chick_mac)
 
 args = {}
 args['op'] = "report_chicks"

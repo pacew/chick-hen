@@ -2,6 +2,8 @@ const BROADCAST_MAC_HASH 21
 const HEN_MAC_HASH 22
 const SUBSTITUTE_MAC_HASH 23
 
+const CHAN_TYPE_8BIT_PORT 1
+
 pkt scan 1
 8 key
 8 divisor
@@ -25,7 +27,6 @@ pkt probe_response 3
 8 mac5
 
 
-
 pkt hdr 0
 8 mac_hash
 4 op
@@ -33,31 +34,13 @@ pkt hdr 0
 pkt cookie 0
 32 cookie
 
-pkt data 0
-8 last_strength
-24 seq
-# raw data follows
-
 pkt ack 4
 8 err
-
-pkt set_params 5
-14 record_interval_secs
-14 xmit_interval_secs
-
-pkt status 6
-8 last_strength
-24 series_number
-24 config_hash
-24 acked_seq
-32 acked_timestamp
-24 newest_seq
 
 pkt chanlist 7
 4 chan_type
 16 port
-6 bit_width
-6 bit_position
-# repeats to end of pkt
+5 bit_width
+5 bit_position
 
 

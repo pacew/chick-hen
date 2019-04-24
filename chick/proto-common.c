@@ -44,8 +44,8 @@ proto_print (FILE *f, struct proto_desc *desc, void *cval)
 	}
 }
 
-static int
-encode_val (struct proto_buf *pb, uint32_t val, int bits)
+int
+proto_putbits (struct proto_buf *pb, uint32_t val, int bits)
 {
 	int togo, thistime;
 	uint32_t remaining_val;
@@ -186,7 +186,7 @@ proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval)
 			break;
 		}
 		val = getval (fp, cval);
-		if (encode_val (pb, val, fp->bits) < 0) {
+		if (proto_putbits (pb, val, fp->bits) < 0) {
 			pb->err = 1;
 			break;
 		}
