@@ -3,7 +3,7 @@
 import sys
 import random
 
-sys.path.insert(0, "/home/pace/psite")  # noqa: E402
+sys.path.insert(0, "../../psite")  # noqa: E402
 import psite
 
 import proto

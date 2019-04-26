@@ -8,7 +8,7 @@ import base64
 import urllib
 import re
 
-sys.path.insert(0, "/home/pace/psite")  # noqa: E402
+sys.path.insert(0, "../../psite")  # noqa: E402
 import psite
 
 hen_name = psite.getvar("hen_name")
