@@ -6,12 +6,14 @@ import json
 import hmac
 import base64
 import urllib
+import re
 
 sys.path.insert(0, "/home/pace/psite")  # noqa: E402
 import psite
 
 hen_name = psite.getvar("hen_name")
 hen_key_hex = psite.getvar("hen_key")
+coop_url = psite.getvar("coop_url")
 
 hen_key = bytes.fromhex(hen_key_hex)
 
@@ -27,7 +29,7 @@ def apicall(params):
     sig_base64 = base64.b64encode(sig_binary)
     args = dict(payload=payload_bytes, sig=sig_base64)
 
-    endpoint = "https://k.pacew.org:12912/api.php"
+    endpoint = re.sub(r"/*$", "", coop_url) + "/api.php"
 
     full_url = "{}?{}&debug=1".format(endpoint, urllib.parse.urlencode(args))
     print(full_url)

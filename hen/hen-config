@@ -6,12 +6,14 @@ import hashlib
 sys.path.insert(0, "/home/pace/psite")  # noqa: E402
 import psite
 
-if len(sys.argv) != 3:
-   print ("usage: set-name-and-key hen_name password")
+if len(sys.argv) != 4:
+   print("usage: hen-config hen_name password coop-url")
+   print("./hen-config corn test https://k.pacew.org:12912")
    sys.exit(1)
 
 hen_name = sys.argv[1]
 pw = sys.argv[2]
+coop_url = sys.argv[3]
 
 hen_key = hashlib.pbkdf2_hmac("sha256", pw.encode("utf8"), b'22906', 100000)
 hen_key_hex = hen_key.hex()
@@ -19,6 +21,7 @@ hen_key_hex = hen_key.hex()
 
 psite.setvar("hen_name", hen_name)
 psite.setvar("hen_key", hen_key_hex)
+psite.setvar("coop_url", coop_url)
 psite.commit()
 
 
