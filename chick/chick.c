@@ -2,6 +2,9 @@
 
 #include <time.h>
 
+void xmit_pkt (void *buf, int size);
+int rcv_pkt (void *buf, int max_size);
+
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
@@ -289,8 +292,7 @@ maybe_xmit (void)
 	
 		printf ("raw xmit data: ");
 		dump (xbuf, used);
-		sendto (sock, xbuf, used, 0,
-			(struct sockaddr *)&hen_addr, sizeof hen_addr);
+		xmit_pkt (xbuf, used);
 	}
 
 	last_xmit_ts = get_secs ();
@@ -454,8 +456,7 @@ handle_scan (struct proto_hdr *rhdr, struct proto_buf *pb)
 		printf ("raw xmit scan: ");
 		dump (xbuf, xlen);
 
-		sendto (sock, xbuf, xlen, 0, 
-			(struct sockaddr *)&hen_addr, sizeof hen_addr);
+		xmit_pkt (xbuf, xlen);
 	}
 }
 
@@ -500,24 +501,47 @@ handle_chanlist (struct proto_hdr *rhdr, struct proto_buf *pb)
 	printf ("ack\n");
 	dump (xbuf, xlen);
 
-	sendto (sock, xbuf, xlen, 0, 
+	xmit_pkt (xbuf, xlen);
+}
+
+unsigned char last_pkt_sent[10000];
+int last_pkt_sent_size;
+
+void
+xmit_pkt (void *buf, int size)
+{ 
+	sendto (sock, buf, size, 0, 
 		(struct sockaddr *)&hen_addr, sizeof hen_addr);
+	if ((last_pkt_sent_size = size) > sizeof last_pkt_sent)
+		last_pkt_sent_size = sizeof last_pkt_sent;
+	memcpy (last_pkt_sent, buf, last_pkt_sent_size);
+}
+	
+int
+rcv_pkt (void *buf, int max_size)
+{
+	int len;
+	
+	while ((len = recv (sock, buf, max_size, 0)) >= 0) {
+		if (len > 0) {
+			if (len != last_pkt_sent_size 
+			    || memcmp (last_pkt_sent, buf, len) != 0)
+				return (len);
+		}
+	}
+
+	return (-1);
 }
 
 void
 rcv_soak (void)
 {
-	struct sockaddr_in raddr;
-	socklen_t raddr_len;
 	unsigned char rbuf[10000];
 	int len;
 	struct proto_buf pb;
 	struct proto_hdr hdr;
 
-	raddr_len = sizeof raddr;
-
-	while ((len = recvfrom (sock, rbuf, sizeof rbuf, 0,
-				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
+	while ((len = rcv_pkt (rbuf, sizeof rbuf)) >= 0) {
 		if (vflag) {
 			printf ("raw rcv: ");
 			dump (rbuf, len);
