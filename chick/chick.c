@@ -1,5 +1,8 @@
 #include "chick-hen.h"
 
+#include <time.h>
+
+
 #define min(a,b) ((a)<(b)?(a):(b))
 
 #define MAX_CHANS 10
@@ -30,9 +33,6 @@ struct nvram nvram, nvram_saved;
 
 char nvram_filename[100];
 
-int dpoint_bits;
-int dpoint_bytes;
-
 void
 print_chanlist (void)
 {
@@ -48,25 +48,6 @@ print_chanlist (void)
 			chanlist.bit_width,
 			chanlist.bit_position);
 	}
-}
-
-void
-nvram_parse (void)
-{
-	struct proto_buf pb;
-	struct proto_chanlist chanlist;
-
-	printf ("nvram parse: chanlist\n");
-	
-	dpoint_bits = 0;
-	proto_decode_init (&pb, nvram.chanlist, nvram.chanlist_used);
-	while (pb.used_bits + PROTO_CHANLIST_NBITS <= pb.avail_bits) {
-		proto_decode (&pb, &proto_chanlist_desc, &chanlist);
-		dpoint_bits += chanlist.bit_width;
-	}
-	dpoint_bytes = (dpoint_bits + 7) / 8;
-
-	print_chanlist();
 }
 
 void
@@ -105,7 +86,7 @@ done:
 	if (! success)
 		memset (&nvram, 0, sizeof nvram);
 
-	nvram_parse ();
+	print_chanlist ();
 
 	if (f)
 		fclose (f);
@@ -136,15 +117,45 @@ nvram_save (void)
 	}
 }
 		 
+unsigned char dpoints[10000];
+int dpoints_in;
+int dpoints_out;
+
+void
+save_dpoint (unsigned char *dbuf, int n)
+{
+	int offset, c;
+	
+	offset = 0;
+	while (offset < n && dpoints_in + 2 < sizeof dpoints) {
+		c = dbuf[offset++];
+		/* slip protocol escapes */
+		if (c == 0xc0 || c == 0xdb) {
+			dpoints[dpoints_in++] = 0xdb;
+			c = 0xd0 | (c >> 4);
+		}
+		dpoints[dpoints_in++] = c;
+	}
+	if (dpoints_in < sizeof dpoints)
+		dpoints[dpoints_in++] = 0xc0;
+
+	printf ("save_dpoint %d %d\n", n, dpoints_in);
+}
+
 void
 collect_dpoint (void)
 {
 	struct proto_buf dpb, cpb;
 	struct proto_chanlist chanlist;
+	unsigned char dbuf[256];
 	int width, mask;
 	int val;
+	double period_minutes, hz, omega;
+	struct proto_dpoint dpoint;
 	
-//	proto_encode_init (&dpb, dbuf, N);
+	proto_encode_init (&dpb, dbuf, sizeof dbuf);
+	dpoint.timestamp = time (NULL);
+	proto_encode (&dpb, &proto_dpoint_desc, &dpoint);
 
 	proto_decode_init (&cpb, nvram.chanlist, nvram.chanlist_used);
 	while (cpb.used_bits + PROTO_CHANLIST_NBITS <= cpb.avail_bits) {
@@ -155,14 +166,19 @@ collect_dpoint (void)
 
 		switch (chanlist.chan_type) {
 		case CHAN_TYPE_8BIT_PORT:
-			val = random() & 0xff;
-			val = (val >> chanlist.bit_position) & mask;
+			period_minutes = 3.1;
+			hz = 1 / (period_minutes * 60);
+			omega = 2 * M_PI * hz;
+			val = 100 * sin(omega * time(NULL)) + 128;
+			val &= mask;
 			break;
 		default:
 			break;
 		}
 		proto_putbits (&dpb, val, width);
 	}
+
+	save_dpoint (dbuf, proto_used (&dpb));
 }
 
 int sock;
@@ -227,18 +243,56 @@ jitter (void)
 void
 maybe_xmit (void)
 {
-	unsigned char pkt[1000];
-	int size;
+	int start, end, dbytes;
+	int used;
+	struct proto_buf xpb;
+	struct proto_hdr xhdr;
+	unsigned char xbuf[1000];
 	
 	/* TODO: take into account generated jitter */
 	if (get_secs () - last_xmit_ts < XMIT_INTERVAL_SECS)
 		return;
 
-	if (0) {
-		dump (pkt, size);
-		sendto (sock, pkt, size, 0,
+	/* skip SLIP separators */
+	while (dpoints_out < dpoints_in && dpoints[dpoints_out] == 0xc0)
+		dpoints_out++;
+
+	/* if there is a packet ready, this is the start of it */
+	start = dpoints_out;
+
+	/* search for end marker of current packet */
+	end = dpoints_out + 1;
+	while (end < dpoints_in && dpoints[end] != 0xc0)
+		end++;
+
+	if (dpoints_out == dpoints_in) {
+		/* no packet (or an incomplete one - that would be weird) */
+		printf ("no data to xmit\n"); 
+		return;
+	}
+
+	dbytes = end - start;
+
+	proto_encode_init (&xpb, xbuf, sizeof xbuf);
+	xhdr.mac_hash = HEN_MAC_HASH;
+	xhdr.op = OP_DPOINT;
+	proto_encode (&xpb, &proto_hdr_desc,  &xhdr);
+	
+	used = proto_used (&xpb);
+	if (used + dbytes > sizeof xbuf) {
+		printf ("xbuf overflow\n");
+		/* advance out index so we'll just skip this packet */
+		dpoints_out = end;
+	} else {
+		memcpy (xbuf + used, &dpoints[start], dbytes);
+		used += dbytes;
+	
+		printf ("raw xmit data: ");
+		dump (xbuf, used);
+		sendto (sock, xbuf, used, 0,
 			(struct sockaddr *)&hen_addr, sizeof hen_addr);
 	}
+
 	last_xmit_ts = get_secs ();
 	
 	listen_until_ts = last_xmit_ts + LISTEN_INTERVAL_SECS;
@@ -364,43 +418,7 @@ main (int argc, char **argv)
 }
 
 void
-handle_probe (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
-	      struct proto_buf *pb)
-{
-	unsigned char xbuf[10000];
-	int xlen;
-	struct proto_probe probe;
-	struct proto_buf xpb;
-	struct proto_hdr xhdr;
-	struct proto_probe_response pr;
-	
-	printf ("probe\n");
-
-	proto_decode (pb, &proto_probe_desc, &probe);
-
-	if (probe.mac0 != my_mac_addr[0]
-	    || probe.mac1 != my_mac_addr[1]
-	    || probe.mac2 != my_mac_addr[2]
-	    || probe.mac3 != my_mac_addr[3]
-	    || probe.mac4 != my_mac_addr[4]
-	    || probe.mac5 != my_mac_addr[5]) {
-		printf ("probe: mac mismatch\n");
-		return;
-	}
-
-	proto_encode_init (&xpb, xbuf, sizeof xbuf);
-	xhdr.op = OP_PROBE_RESPONSE;
-	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
-	proto_encode (&xpb, &proto_probe_response_desc, &pr);
-	xlen = proto_used (&xpb);
-	dump (xbuf, xlen);
-
-	sendto (sock, xbuf, xlen, 0, (struct sockaddr *)raddr, sizeof *raddr);
-}
-
-void
-handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
-	     struct proto_buf *pb)
+handle_scan (struct proto_hdr *rhdr, struct proto_buf *pb)
 {
 	unsigned char xbuf[10000];
 	int xlen;
@@ -433,16 +451,16 @@ handle_scan (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 		proto_encode (&xpb, &proto_probe_response_desc, &pr);
 		proto_sign (&xpb, nvram.hen_key, HEN_KEY_LEN);
 		xlen = proto_used (&xpb);
+		printf ("raw xmit scan: ");
 		dump (xbuf, xlen);
 
 		sendto (sock, xbuf, xlen, 0, 
-			(struct sockaddr *)raddr, sizeof *raddr);
+			(struct sockaddr *)&hen_addr, sizeof hen_addr);
 	}
 }
 
 void
-handle_chanlist (struct sockaddr_in *raddr, struct proto_hdr *rhdr, 
-		 struct proto_buf *pb)
+handle_chanlist (struct proto_hdr *rhdr, struct proto_buf *pb)
 {
 	unsigned char xbuf[10000];
 	int xlen;
@@ -483,7 +501,7 @@ handle_chanlist (struct sockaddr_in *raddr, struct proto_hdr *rhdr,
 	dump (xbuf, xlen);
 
 	sendto (sock, xbuf, xlen, 0, 
-		(struct sockaddr *)raddr, sizeof *raddr);
+		(struct sockaddr *)&hen_addr, sizeof hen_addr);
 }
 
 void
@@ -500,8 +518,10 @@ rcv_soak (void)
 
 	while ((len = recvfrom (sock, rbuf, sizeof rbuf, 0,
 				(struct sockaddr *)&raddr, &raddr_len)) >= 0) {
-		if (vflag)
+		if (vflag) {
+			printf ("raw rcv: ");
 			dump (rbuf, len);
+		}
 
 		if (rbuf[0] != BROADCAST_MAC_HASH && rbuf[0] != my_mac_hash) {
 			printf ("skip mac hash 0x%x\n", rbuf[0]);
@@ -525,14 +545,11 @@ rcv_soak (void)
 		}
 
 		switch (hdr.op) {
-		case OP_PROBE:
-			handle_probe (&raddr, &hdr, &pb);
-			break;
 		case OP_SCAN:
-			handle_scan (&raddr, &hdr, &pb);
+			handle_scan (&hdr, &pb);
 			break;
 		case OP_CHANLIST:
-			handle_chanlist (&raddr, &hdr, &pb);
+			handle_chanlist (&hdr, &pb);
 			break;
 		default:
 			printf ("unknown op %d 0x%x\n", hdr.op, hdr.op);

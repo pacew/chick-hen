@@ -218,8 +218,7 @@ def init(key):
     mreq = socket.inet_aton(CHICK_HEN_MADDR) + socket.inet_aton("0.0.0.0")
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-    # ? prevents receiving responses
-    # sock.bind((CHICK_HEN_MADDR, CHICK_HEN_PORT))
+    sock.bind((CHICK_HEN_MADDR, CHICK_HEN_PORT))
 
     global hen_key_bin
     hen_key_bin = bytes.fromhex(key)

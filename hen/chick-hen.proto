@@ -10,14 +10,6 @@ pkt scan 1
 8 remainder
 8 jitter
 
-pkt probe 2
-8 mac0
-8 mac1
-8 mac2
-8 mac3
-8 mac4
-8 mac5
-
 pkt probe_response 3
 8 mac0
 8 mac1
@@ -44,3 +36,5 @@ pkt chanlist 7
 5 bit_position
 
 
+pkt dpoint 8
+32 timestamp
