@@ -4,27 +4,39 @@
 
 #include "proto-gen.h"
 
-/* encoded format is little endian, regardless of host byte order */
+/* wire format is little endian, regardless of host byte order */
 
+/* get value from structure, so host byte order */
 static uint32_t
 getval (struct field_desc *fp, void *cval)
 {
+	uint16_t val16;
+	uint32_t val32;
+
 	if (fp->bits <= 8)
 		return (*(uint8_t *)(cval + fp->offset));
-	if (fp->bits <= 16)
-		return (*(uint16_t *)(cval + fp->offset));
-	return (*(uint32_t *)(cval + fp->offset));
+	if (fp->bits <= 16) {
+		memcpy (&val16, cval + fp->offset, sizeof val16);
+		return (val16);
+	}
+
+	memcpy (&val32, cval + fp->offset, sizeof val32);
+	return (val32);
 }
 
+/* put value into structure, so host byte order */
 static void
 putval (struct field_desc *fp, void *cval, uint32_t val)
 {
-	if (fp->bits <= 8)
+	
+	if (fp->bits <= 8) {
 		*(uint8_t *)(cval + fp->offset) = val;
-	else if (fp->bits <= 16)
-		*(uint16_t *)(cval + fp->offset) = val;
-	else
-		*(uint32_t *)(cval + fp->offset) = val;
+	} else if (fp->bits <= 16) {
+		uint16_t val16 = val;
+		memcpy (cval + fp->offset, &val16, sizeof val16);
+	} else {
+		memcpy (cval + fp->offset, &val, sizeof val);
+	}
 }
 
 void
@@ -79,6 +91,21 @@ proto_putbits (struct proto_buf *pb, uint32_t val, int bits)
 
 	return (0);
 }
+
+int
+proto_putbytes (struct proto_buf *pb, void *buf, int len)
+{
+	int used;
+	
+	used = proto_used (pb);
+	if ((used + len) * 8 > pb->avail_bits)
+		return (-1);
+	memcpy (pb->base + used, buf, len);
+	pb->used_bits += len * 8;
+
+	return (0);
+}
+
 
 static uint32_t
 decode_val (struct proto_buf *pb, int bits)

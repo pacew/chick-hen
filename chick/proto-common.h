@@ -36,6 +36,7 @@ int proto_checksig (struct proto_buf *pb,
 		    void *chick_key, int chick_key_len);
 void proto_encode_init (struct proto_buf *pb, void *buf, int size);
 int proto_putbits (struct proto_buf *pb, uint32_t val, int bits);
+int proto_putbytes (struct proto_buf *pb, void *buf, int len);
 void proto_print (FILE *f, struct proto_desc *desc, void *cval);
 void proto_encode (struct proto_buf *pb, struct proto_desc *desc, void *cval);
 void proto_sign (struct proto_buf *pb, void *key, int keylen);

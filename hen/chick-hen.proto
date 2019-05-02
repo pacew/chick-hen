@@ -23,6 +23,9 @@ pkt hdr 0
 8 mac_hash
 4 op
 
+pkt from_mac_hash 0
+8 mac_hash
+
 pkt cookie 0
 32 cookie
 

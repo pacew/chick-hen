@@ -250,6 +250,7 @@ maybe_xmit (void)
 	int used;
 	struct proto_buf xpb;
 	struct proto_hdr xhdr;
+	struct proto_from_mac_hash xfrom;
 	unsigned char xbuf[1000];
 	
 	/* TODO: take into account generated jitter */
@@ -279,21 +280,16 @@ maybe_xmit (void)
 	proto_encode_init (&xpb, xbuf, sizeof xbuf);
 	xhdr.mac_hash = HEN_MAC_HASH;
 	xhdr.op = OP_DPOINT;
-	proto_encode (&xpb, &proto_hdr_desc,  &xhdr);
-	
+	proto_encode (&xpb, &proto_hdr_desc, &xhdr);
+	xfrom.mac_hash = my_mac_hash;
+	proto_encode (&xpb, &proto_from_mac_hash_desc, &xfrom);
+	proto_putbytes  (&xpb, &dpoints[start], dbytes);
+	proto_sign (&xpb, chick_key, CHICK_KEY_LEN);
+
 	used = proto_used (&xpb);
-	if (used + dbytes > sizeof xbuf) {
-		printf ("xbuf overflow\n");
-		/* advance out index so we'll just skip this packet */
-		dpoints_out = end;
-	} else {
-		memcpy (xbuf + used, &dpoints[start], dbytes);
-		used += dbytes;
-	
-		printf ("raw xmit data: ");
-		dump (xbuf, used);
-		xmit_pkt (xbuf, used);
-	}
+	printf ("raw xmit data: ");
+	dump (xbuf, used);
+	xmit_pkt (xbuf, used);
 
 	last_xmit_ts = get_secs ();
 	
@@ -311,6 +307,8 @@ main (int argc, char **argv)
 	double secs;
 	char *key;
 	
+	printf ("TODO: decide when to sign with chick_key\n");
+
 	key = NULL;
 	while ((c = getopt (argc, argv, "vxk:")) != EOF) {
 		switch (c) {
@@ -365,6 +363,7 @@ main (int argc, char **argv)
 		
 	}
 
+	/* chick key is hen_key plus chick mac address */
 	memcpy (chick_key, nvram.hen_key, HEN_KEY_LEN);
 	memcpy (chick_key + HEN_KEY_LEN, my_mac_addr, MAC_LEN);
 
@@ -561,12 +560,6 @@ rcv_soak (void)
 		}
 
 		proto_decode (&pb, &proto_hdr_desc, &hdr);
-
-		if (hdr.mac_hash != my_mac_hash
-		    && hdr.mac_hash != BROADCAST_MAC_HASH) {
-			printf ("not for me 0x%x\n", hdr.mac_hash);
-			continue;
-		}
 
 		switch (hdr.op) {
 		case OP_SCAN:
