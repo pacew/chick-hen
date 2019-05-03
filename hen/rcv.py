@@ -1,10 +1,14 @@
 #! /usr/bin/env python3
 import sys
+import io
+import csv
+import datetime
 
 sys.path.insert(0, "../../psite")  # noqa: E402
 import psite
 
 import proto
+import chicklib
 
 vflag = False
 
@@ -12,26 +16,44 @@ hen_key = psite.getvar("hen_key")
 
 proto.init(hen_key)
 
+chicks = chicklib.get_chicks()
+print(chicks)
+
 chicks_by_mac_hash = {}
 
-psite.query("select chick_mac"
-            " from chicks")
-while True:
-    r = psite.fetch()
-    if r is None:
-        break;
+for chick in chicks:
+    mac_hash = chick['mac_hash']
+    if mac_hash not in chicks_by_mac_hash:
+        chicks_by_mac_hash[mac_hash] = []
+    chicks_by_mac_hash[mac_hash].append(chick)
 
-    chick_mac = r[0]
 
-    chick_mac_bin = proto.mac_to_bin(chick_mac)
-    chick_mac_hash = proto.compute_mac_hash(chick_mac_bin)
+def process_dpoint(chick, pb):
+    print("process_dpoint", chick, pb)
+    proto.roundup(pb)
+    dpoint = proto.decode(pb, 'dpoint')
+    psite.query("select 0"
+                " from dpoints"
+                " where chick_mac = ?"
+                "   and ts_raw = ?",
+                (chick['mac'], dpoint['timestamp']))
+    if psite.fetch() is None:
+        vals = []
+        for chan in chick['chanlist']:
+            vals.append(proto.decode_val(pb, chan['bit_width']))
+            f = io.StringIO()
+            c = csv.writer(f)
+            c.writerow(vals)
+        val_string = f.getvalue().strip()
+        seq = psite.get_seq()
+        dttm = datetime.datetime.fromtimestamp(dpoint['timestamp'])
+        psite.query("insert into dpoints(seq, chick_mac, chanlist_id,"
+                    "  ts_raw, dttm, vals"
+                    ") values (?,?,?,?,?,?)",
+                    (seq, chick['mac'], chick['chanlist_id'],
+                     dpoint['timestamp'], dttm, val_string))
+        psite.commit()
 
-    chick = dict(mac=chick_mac, mac_bin=chick_mac_bin)
-
-    if chick_mac_hash not in chicks_by_mac_hash:
-        chicks_by_mac_hash[chick_mac_hash] = []
-
-    chicks_by_mac_hash[chick_mac_hash].append(chick)
 
 def rcv():
     dpoint_op = proto.get_op('dpoint')
@@ -54,10 +76,13 @@ def rcv():
             if chicks is not None:
                 for chick in chicks:
                     print(chick)
-                    rsig = proto.compute_chick_digest(payload, chick['mac_bin'])
+                    rsig = proto.compute_chick_digest(payload,
+                                                      chick['mac_bin'])
                     if rsig == sig:
                         print("match")
+                        process_dpoint(chick, pb)
                         break
+
 
 try:
     rcv()

@@ -158,6 +158,7 @@ collect_dpoint (void)
 	
 	proto_encode_init (&dpb, dbuf, sizeof dbuf);
 	dpoint.timestamp = time (NULL);
+	printf ("timemstamp %d\n", dpoint.timestamp);
 	proto_encode (&dpb, &proto_dpoint_desc, &dpoint);
 
 	proto_decode_init (&cpb, nvram.chanlist, nvram.chanlist_used);

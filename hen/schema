@@ -27,3 +27,11 @@ col chan_type integer
 col port integer
 col bit_width integer
 col bit_position integer
+
+table dpoints
+col seq integer
+col chick_mac varchar
+col chanlist_id integer
+col ts_raw integer
+col dttm datetime
+col vals varchar

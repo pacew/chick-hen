@@ -113,6 +113,16 @@ def decode_val(pb, bits):
     return output
 
 
+def roundup(pb):
+    used_bits = pb['used_bits']
+    discard = 8 - (used_bits % 8)
+    if discard < 8:
+        used_bits += discard
+        if used_bits > pb['avail_bits']:
+            used_bits = pb['avail_bits']
+        pb['used_bits'] = used_bits
+
+
 def encode(pb, pkt_name, pval):
     global the_protocol
     desc = the_protocol['pkts'][pkt_name]
