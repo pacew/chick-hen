@@ -54,6 +54,19 @@ def process_dpoint(chick, pb):
                      dpoint['timestamp'], dttm, val_string))
         psite.commit()
 
+    hdr = {}
+    hdr['mac_hash'] = chick['mac_hash']
+    hdr['op'] = proto.get_op('ack_dpoint')
+    pb = proto.encode_init()
+    proto.encode(pb, "hdr", hdr)
+
+    ack ={}
+    ack['timestamp'] = dpoint['timestamp']
+    proto.encode(pb, "ack_dpoint", ack)
+
+    proto.sign_with_chick_key(pb, chick['mac_bin'])
+
+    proto.send(pb['buf'])
 
 def rcv():
     dpoint_op = proto.get_op('dpoint')

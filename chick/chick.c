@@ -16,7 +16,7 @@ int my_mac_hash;
 int vflag;
 int xflag;
 
-#define DATA_INTERVAL_SECS 1
+#define DATA_INTERVAL_SECS 5
 #define XMIT_INTERVAL_SECS 1
 #define LISTEN_INTERVAL_SECS 0.5
 
@@ -244,6 +244,9 @@ jitter (void)
 	return ((r - 0.5) * DATA_INTERVAL_SECS * 0.1);
 }
 
+uint32_t current_xmit_timestamp;
+int current_xmit_end;
+
 void
 maybe_xmit (void)
 {
@@ -270,13 +273,19 @@ maybe_xmit (void)
 	while (end < dpoints_in && dpoints[end] != 0xc0)
 		end++;
 
-	if (dpoints_out == dpoints_in) {
+	dbytes = end - start;
+
+	if (dbytes < 4) {
 		/* no packet (or an incomplete one - that would be weird) */
 		printf ("no data to xmit\n"); 
 		return;
 	}
 
-	dbytes = end - start;
+	memcpy (&current_xmit_timestamp, &dpoints[start], 
+		sizeof current_xmit_timestamp);
+	current_xmit_end = end;
+	printf ("current_xmit_timestamp %d\n", current_xmit_timestamp);
+
 
 	proto_encode_init (&xpb, xbuf, sizeof xbuf);
 	xhdr.mac_hash = HEN_MAC_HASH;
@@ -504,6 +513,21 @@ handle_chanlist (struct proto_hdr *rhdr, struct proto_buf *pb)
 	xmit_pkt (xbuf, xlen);
 }
 
+void
+handle_ack_dpoint (struct proto_hdr *rhdr, struct proto_buf *pb)
+{
+	struct proto_ack_dpoint ack;
+	
+	proto_decode (pb, &proto_ack_dpoint_desc, &ack);
+
+	printf ("ack_dpoint %d\n", ack.timestamp);
+
+	if (ack.timestamp == current_xmit_timestamp) {
+		printf ("advance\n");
+		dpoints_out = current_xmit_end;
+	}
+}
+
 unsigned char last_pkt_sent[10000];
 int last_pkt_sent_size;
 
@@ -568,6 +592,9 @@ rcv_soak (void)
 			break;
 		case OP_CHANLIST:
 			handle_chanlist (&hdr, &pb);
+			break;
+		case OP_ACK_DPOINT:
+			handle_ack_dpoint (&hdr, &pb);
 			break;
 		default:
 			printf ("unknown op %d 0x%x\n", hdr.op, hdr.op);
